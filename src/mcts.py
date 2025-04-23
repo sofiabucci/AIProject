@@ -61,8 +61,8 @@ class MCTS:
         # Simula uma partida aleatória a partir do nó
         state = node.state
         while not self.is_terminal(state):
-            action = random.choice(self.get_legal_actions(state))
-            state = self.simulate_action(state, action)
+            action = random.choice(node.get_legal_actions())
+            state = node.simulate_action(state, action)
         return self.get_reward(state)
 
     def backpropagate(self, node, reward):
@@ -75,3 +75,9 @@ class MCTS:
     def get_best_action(self):
         # Retorna a ação com mais visitas
         return max(self.root.children, key=lambda c: c.visits).state
+
+
+    def is_terminal(self, state):
+        # Retorna True se o estado e terminal
+        # Precisa ser implementado por agora sa ta retornando falso
+        return False
