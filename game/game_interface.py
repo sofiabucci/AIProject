@@ -1,4 +1,4 @@
-from mcts import MCTS
+from ai.mcts import MCTS
 
 COLS = 7
 ROWS = 6
