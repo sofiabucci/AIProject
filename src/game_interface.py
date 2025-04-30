@@ -18,7 +18,7 @@ def play_game():
         case 1: play_against_player()
         case 2: play_against_ai()
         case 3: ai_against_ai()
-        case _: exit(SyntaxError)
+        case _: exit(ValueError)
 
 
 def play_against_player():
@@ -31,10 +31,7 @@ def play_against_player():
             row = find_row(board, col,current_player)
             board[col][row] = current_player
             #checar se venceu se nao atualizar o jogador
-            if won_game(board, current_player, col, row):
-                print("Jogador 1 Ganhou!!!")
-                exit()
-            else:
+            if next_player(won_game(board, current_player, col, row)) == 0:
                 current_player = 2
         else:
             col = int(input("Jogador 2, escolha uma coluna (0-6): "))
@@ -42,10 +39,7 @@ def play_against_player():
             # atualizar tabuleiro
             board[col][row] = current_player
             #checar se venceu se nao atualizar o jogador
-            if won_game(board, current_player, col, row):
-                print("Jogador 2 Ganhou!!!")
-                exit()
-            else:
+            if next_player(won_game(board, current_player, col, row)) == 0:
                 current_player = 1
 
 def play_against_ai():
@@ -59,10 +53,7 @@ def play_against_ai():
             # atualizar tabuleiro
             board[col][row] = current_player
             #checar se venceu se nao atualizar o jogador
-            if won_game(board, current_player, col, row):
-                print("Jogador Ganhou!!!")
-                exit()
-            else:
+            if next_player(won_game(board, current_player, col, row)) == 0:
                 current_player = 2
         else:
             print("Bot escolhendo jogada...")
@@ -73,11 +64,8 @@ def play_against_ai():
             # atualizar tabuleiro
             board[col][row] = current_player
             #checar se venceu se nao atualizar o jogador
-            if won_game(board, current_player, col, row):
-                print("Bot Ganhou!!!")
-                exit()
-            else:
-                current_player = 2
+            if next_player(won_game(board, current_player, col, row)) == 0:
+                current_player = 1
         # Implemente a lógica para atualizar o tabuleiro e verificar vitória
 
 def ai_against_ai():
@@ -91,10 +79,7 @@ def ai_against_ai():
             # atualizar tabuleiro
             board[col][row] = current_player
             # checar se venceu se nao atualizar o jogador
-            if won_game(board, current_player, col, row):
-                print("Bot 1 Ganhou!!!")
-                exit()
-            else:
+            if next_player(won_game(board, current_player, col, row)) == 0:
                 current_player = 2
         else:
             print("Bot 2 escolhendo jogada... ")
@@ -104,18 +89,28 @@ def ai_against_ai():
             row = find_row(board, col, current_player)
             board[col][row] = current_player
             #checar se venceu se nao atualizar o jogador
-            if won_game(board, current_player, col, row):
-                print("Bot 2 Ganhou!!!")
-                exit()
-            else:
-                current_player = 2
+            if next_player(won_game(board, current_player, col, row)) == 0:
+                current_player = 1
         # Implemente a lógica para atualizar o tabuleiro e verificar vitória
 
+def next_player(i):
+    match i:
+        case 1:
+            print("Jogador 1 ganhou!!")
+            exit()
+        case 2:
+            print("Jogador 2 ganhou!!")
+            exit()
+        case 0:
+            return 0
+        case -1:
+            print("Empate!!")
+            exit()
+        case _:
+            exit(ValueError)
 
 
 def won_game(board, player, col, row):
-    full_board = True
-    won = 0
     # checar horizontais
     count = 1
     i = col + 1
@@ -141,14 +136,23 @@ def won_game(board, player, col, row):
         count, i = count+1, i-1
     if count >= 4: 
         return player
+    
+    count = 1
+    i = 1
+    while row+i < ROWS and col-i >= 0 and board[row+i][col+i] == player: 
+        count, i = count+1, i+1
+    i = - 1
+    while row+i >= 0 and col-i < COLS and board[row+i][col+i] == player: 
+        count, i = count+1, i-1
+    if count >= 4: 
+        return player
+    # checar empate
+    for i in range(COLS):
+        if board[ROWS-1][COLS] == 0:
+            return 0
+    return -1
 
-    if full_board:
-        print("Empate!!")
-        exit()
-    else:
-        return won
-
-def find_row(board, col, player):
+def find_row(board, col):
     i = 0
     for pos in board[col]:
         if not pos == 1: i+1
