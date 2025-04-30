@@ -1,5 +1,4 @@
 from mcts import MCTS
-import game as gm
 
 COLS = 7
 ROWS = 6
