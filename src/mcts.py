@@ -79,5 +79,5 @@ class MCTS:
 
     def is_terminal(self, state):
         # Retorna True se o estado e terminal
-        # Precisa ser implementado por agora sa ta retornando falso
+        # Precisa ser implementado por agora so ta retornando falso
         return False
