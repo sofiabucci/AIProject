@@ -46,7 +46,7 @@ class HumanPlayer:
             except ValueError:
                 print("Entrada inválida. Digite um número ou 'q' para sair.")
 
-class AIPlayer:
+class MCTSPlayer:
     def __init__(self, iterations: int = 1000):
         self.iterations = iterations
     
@@ -55,3 +55,13 @@ class AIPlayer:
         print("IA está pensando...")
         mcts = MCTS(board, iterations=self.iterations)
         return mcts.search()
+    
+class aStarPlayer:
+    def __init__(self, iterations: int = 1000):
+        self.iterations = iterations
+    
+    def get_move(self, board: Board) -> int:
+        """Obtém movimento da IA usando MCTS"""
+        print("IA está pensando...")
+        s_star = a_Star(board, iterations=self.iterations)
+        return a_Star.search()
