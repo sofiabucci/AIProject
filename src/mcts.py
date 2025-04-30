@@ -78,6 +78,24 @@ class MCTS:
 
 
     def is_terminal(self, state):
-        # Retorna True se o estado e terminal
-        # Precisa ser implementado por agora sa ta retornando falso
+        # Verifica se há uma sequência de 4 em linha para algum jogador
+        rows, cols = 6, 7
+        for r in range(rows):
+            for c in range(cols):
+                player = state[r][c]
+                if player == 0:
+                    continue
+                if c <= cols - 4 and all(state[r][c + i] == player for i in range(4)):
+                    return True
+                if r <= rows - 4 and all(state[r + i][c] == player for i in range(4)):
+                    return True
+                if r <= rows - 4 and c <= cols - 4 and all(state[r + i][c + i] == player for i in range(4)):
+                    return True
+                if r >= 3 and c <= cols - 4 and all(state[r - i][c + i] == player for i in range(4)):
+                    return True
+
+        # Verifica empate (tabuleiro cheio)
+        if all(state[0][col] != 0 for col in range(cols)):
+            return True
+
         return False
