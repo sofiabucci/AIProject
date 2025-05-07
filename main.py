@@ -1,63 +1,57 @@
-from game.interface import GameInterface
 from game.board import Board
 from game.player import HumanPlayer, AIPlayer
-from mcts import MCTSAgent
-from decision_tree import DecisionTreeAgent
-import time
+from ai.mcts import MCTSAgent
+from ai.decision_tree import DecisionTreeAgent
+from game.interface import GraphicalInterface
+import pygame
+import sys
 
-class GameController:
-    def __init__(self):
-        self.board = Board()
-        self.interface = GameInterface()
-        self.mcts_agent = MCTSAgent(iterations=1000)
-        self.dt_agent = DecisionTreeAgent(model_path='models/connect4_model.pkl')
-        self.player1 = None
-        self.player2 = None
+def main():
+    # Inicializa interface
+    gui = GraphicalInterface()
     
-    def setup_players(self, mode):
-        if mode == 1:  # Human vs Human
-            self.player1 = HumanPlayer(1)
-            self.player2 = HumanPlayer(2)
-        elif mode == 2:  # Human vs AI (MCTS)
-            self.player1 = HumanPlayer(1)
-            self.player2 = AIPlayer(2, self.mcts_agent)
-        elif mode == 3:  # AI (MCTS) vs AI (Decision Tree)
-            self.player1 = AIPlayer(1, self.mcts_agent)
-            self.player2 = AIPlayer(2, self.dt_agent)
+    # Seleciona modo de jogo
+    game_mode = gui.get_game_mode()
     
-    def run(self):
-        print("Select game mode:")
-        print("1. Human vs Human")
-        print("2. Human vs Computer (MCTS)")
-        print("3. Computer (MCTS) vs Computer (Decision Tree)")
-        mode = int(input("Enter mode (1-3): "))
+    # Configura jogadores
+    if game_mode == 1:  # Humano vs Humano
+        player1 = HumanPlayer(1)
+        player2 = HumanPlayer(2)
+    elif game_mode == 2:  # Humano vs IA
+        player1 = HumanPlayer(1)
+        player2 = AIPlayer(2, MCTSAgent(iterations=1000))
+    else:  # IA vs IA
+        player1 = AIPlayer(1, MCTSAgent(iterations=1000))
+        player2 = AIPlayer(2, DecisionTreeAgent())
+    
+    # Inicializa jogo
+    board = Board()
+    current_player = player1
+    gui.draw_board(board)
+    
+    # Loop principal do jogo
+    while not board.is_game_over:
+        # Jogador humano
+        if isinstance(current_player, HumanPlayer):
+            col = gui.get_human_move(board)
+        # Jogador IA
+        else:
+            pygame.time.delay(500)  # Delay para visualização
+            col = current_player.get_move(board)
         
-        self.setup_players(mode)
-        current_player = self.player1
-        
-        while True:
-            self.interface.display_board(self.board)
-            
-            if isinstance(current_player, HumanPlayer):
-                col = current_player.get_move(self.board)
-            else:
-                print(f"AI ({'MCTS' if current_player.agent == self.mcts_agent else 'DT'}) is thinking...")
-                start_time = time.time()
-                col = current_player.get_move(self.board)
-                print(f"Move took {time.time() - start_time:.2f} seconds")
-            
-            if self.board.make_move(col, current_player.player_id):
-                if self.board.check_winner(current_player.player_id):
-                    self.interface.display_board(self.board)
-                    print(f"Player {current_player.player_id} wins!")
-                    break
-                elif self.board.is_full():
-                    self.interface.display_board(self.board)
-                    print("It's a draw!")
-                    break
-                
-                current_player = self.player2 if current_player == self.player1 else self.player1
+        if board.drop_piece(col):
+            gui.draw_board(board)
+            current_player = player2 if current_player == player1 else player1
+    
+    # Mostra resultado
+    gui.show_game_over(board.winner)
+    
+    # Volta ao menu
+    main()
 
 if __name__ == "__main__":
-    game = GameController()
-    game.run()
+    try:
+        main()
+    finally:
+        pygame.quit()
+        sys.exit()
