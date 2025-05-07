@@ -1,63 +1,63 @@
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from ai.decision_tree import DecisionTree
-from ai.mcts import MCTS
-from interface.cli import CLIGame, HumanPlayer, AIPlayer
-from data.datasets import load_iris_dataset, discretize_iris_data, generate_connect_four_dataset
+from game.interface import GameInterface
+from game.board import Board
+from game.player import HumanPlayer, AIPlayer
+from mcts import MCTSAgent
+from decision_tree import DecisionTreeAgent
+import time
 
-def main():
-    # 1. Carrega e discretiza o dataset Iris
-    iris_data = load_iris_dataset()
-    iris_data = discretize_iris_data(iris_data)
-    print("Dataset Iris carregado e discretizado:")
-    print(iris_data.head())
-
-    # 2. Treina a árvore de decisão para o dataset Iris
-    features = ["sepal_length", "sepal_width", "petal_length", "petal_width"]
-    target = "class"
-    X = iris_data[features]
-    y = iris_data[target]
+class GameController:
+    def __init__(self):
+        self.board = Board()
+        self.interface = GameInterface()
+        self.mcts_agent = MCTSAgent(iterations=1000)
+        self.dt_agent = DecisionTreeAgent(model_path='models/connect4_model.pkl')
+        self.player1 = None
+        self.player2 = None
     
-    dt = DecisionTree(max_depth=3)
-    dt.fit(X, y)
-    print("\nÁrvore de decisão treinada para o dataset Iris.")
-
-    # 3. Gera o dataset Connect Four
-    connect_four_data = generate_connect_four_dataset()
-    print("\nDataset Connect Four gerado:")
-    print(connect_four_data.head())
-
-    # 4. Executa o jogo Connect Four
-    print("\n=== Iniciando Jogo Connect4 ===")
-    print("Modos disponíveis:")
-    print("1. Humano vs IA")
-    print("2. IA vs IA")
-    print("3. Humano vs Humano")
+    def setup_players(self, mode):
+        if mode == 1:  # Human vs Human
+            self.player1 = HumanPlayer(1)
+            self.player2 = HumanPlayer(2)
+        elif mode == 2:  # Human vs AI (MCTS)
+            self.player1 = HumanPlayer(1)
+            self.player2 = AIPlayer(2, self.mcts_agent)
+        elif mode == 3:  # AI (MCTS) vs AI (Decision Tree)
+            self.player1 = AIPlayer(1, self.mcts_agent)
+            self.player2 = AIPlayer(2, self.dt_agent)
     
-    choice = input("Escolha um modo (1-3): ")
-    
-    if choice == '1':
-        player1 = HumanPlayer()
-        player2 = AIPlayer(iterations=1000)
-    elif choice == '2':
-        player1 = AIPlayer(iterations=1000)
-        player2 = AIPlayer(iterations=1000)
-    elif choice == '3':
-        player1 = HumanPlayer()
-        player2 = HumanPlayer()
-    else:
-        print("Opção inválida. Usando Humano vs IA como padrão.")
-        player1 = HumanPlayer()
-        player2 = AIPlayer(iterations=1000)
-    
-    game = CLIGame(player1, player2)
-    game.play()
-
-    # 5. Testa a árvore de decisão com novos dados
-    sample = {"sepal_length": "low", "sepal_width": "medium", 
-              "petal_length": "high", "petal_width": "low"}
-    prediction = dt.predict(sample)
-    print(f"\nPrevisão para a amostra {sample}: {prediction}")
+    def run(self):
+        print("Select game mode:")
+        print("1. Human vs Human")
+        print("2. Human vs Computer (MCTS)")
+        print("3. Computer (MCTS) vs Computer (Decision Tree)")
+        mode = int(input("Enter mode (1-3): "))
+        
+        self.setup_players(mode)
+        current_player = self.player1
+        
+        while True:
+            self.interface.display_board(self.board)
+            
+            if isinstance(current_player, HumanPlayer):
+                col = current_player.get_move(self.board)
+            else:
+                print(f"AI ({'MCTS' if current_player.agent == self.mcts_agent else 'DT'}) is thinking...")
+                start_time = time.time()
+                col = current_player.get_move(self.board)
+                print(f"Move took {time.time() - start_time:.2f} seconds")
+            
+            if self.board.make_move(col, current_player.player_id):
+                if self.board.check_winner(current_player.player_id):
+                    self.interface.display_board(self.board)
+                    print(f"Player {current_player.player_id} wins!")
+                    break
+                elif self.board.is_full():
+                    self.interface.display_board(self.board)
+                    print("It's a draw!")
+                    break
+                
+                current_player = self.player2 if current_player == self.player1 else self.player1
 
 if __name__ == "__main__":
-    main()
+    game = GameController()
+    game.run()
