@@ -33,15 +33,18 @@ class MCTSNode:
     
     def simulate(self) -> float:
         sim_board = self.board.copy()
-        
+        current_player = sim_board.current_player  # jogador a ser avaliado
+
         while not sim_board.is_game_over:
             legal_moves = sim_board.get_legal_moves()
-            if not legal_moves:  # Proteção adicional
+            if not legal_moves:
                 break
-            move = random.choice(legal_moves)
+
+            # Heurística simples: escolher colunas mais próximas do centro
+            move = sorted(legal_moves, key=lambda x: abs(x - sim_board.width // 2))[0]
             sim_board.drop_piece(move)
-        
-        if sim_board.winner == self.board.current_player:
+
+        if sim_board.winner == current_player:
             return 1.0
         elif sim_board.winner == 0:
             return 0.5
