@@ -77,7 +77,7 @@ class GraphicalInterface:
                             button["rect"].centery - text.get_height()//2))
         
         # Rodapé
-        footer = self.info_font.render("© 2023 Connect Four", True, (100, 100, 120))
+        footer = self.info_font.render("© 2025 Connect Four", True, (100, 100, 120))
         self.screen.blit(footer, (self.width//2 - footer.get_width()//2, self.height - 30))
         
         pygame.display.update()
@@ -161,15 +161,15 @@ class GraphicalInterface:
         
         # Mostra de quem é a vez
         turn_text = self.button_font.render(
-            f"Vez do Jogador {board.current_player}", 
+            f"Player's {board.current_player} turn", 
             True, 
             self.PLAYER1_COLOR if board.current_player == 1 else self.PLAYER2_COLOR
         )
         self.screen.blit(turn_text, (20, 20))
         
         # Mostra os jogadores
-        player1_text = self.info_font.render("Jogador 1", True, self.PLAYER1_COLOR)
-        player2_text = self.info_font.render("Jogador 2", True, self.PLAYER2_COLOR)
+        player1_text = self.info_font.render("Player 1", True, self.PLAYER1_COLOR)
+        player2_text = self.info_font.render("Player 2", True, self.PLAYER2_COLOR)
         self.screen.blit(player1_text, (self.width - 200, 20))
         self.screen.blit(player2_text, (self.width - 200, 50))
         
@@ -238,10 +238,10 @@ class GraphicalInterface:
         self.screen.blit(overlay, (0, 0))
         
         if winner:
-            text = f"Jogador {winner} venceu!"
+            text = f"Player {winner} won!"
             color = self.PLAYER1_COLOR if winner == 1 else self.PLAYER2_COLOR
         else:
-            text = "Empate!"
+            text = "Draw!"
             color = self.TEXT_COLOR
         
         # Texto principal
@@ -250,7 +250,7 @@ class GraphicalInterface:
                            self.height//2 - label.get_height()//2 - 50))
         
         # Texto secundário
-        subtext = self.button_font.render("Clique para continuar", True, (200, 200, 200))
+        subtext = self.button_font.render("Click to continue...", True, (200, 200, 200))
         self.screen.blit(subtext, (self.width//2 - subtext.get_width()//2, 
                               self.height//2 + 50))
         

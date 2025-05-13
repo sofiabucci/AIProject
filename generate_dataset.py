@@ -3,8 +3,8 @@ import random
 from ai.mcts import MCTSAgent
 from game.board import Board
 
-def generate_data(num_games: int = 1000, filename: str = 'data/connect4_data.csv'):
-    agent = MCTSAgent(iterations=100)
+def generate_data(num_games: int = 2000, filename: str = 'data/connect4_data.csv'):
+    agent = MCTSAgent(iterations=500)
     
     with open(filename, 'w', newline='') as f:
         writer = csv.writer(f)

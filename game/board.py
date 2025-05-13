@@ -84,6 +84,29 @@ class Board:
                     if count >= self.WIN_LENGTH:
                         return True
         return False
+    
+    def count_connected(self, player: int) -> int:
+        """
+        Conta quantas sequências conectadas (>=2) o jogador possui.
+        Pode ser usado para avaliação heurística.
+        """
+        count = 0
+        directions = [(0, 1), (1, 0), (1, 1), (1, -1)]
+        
+        for row in range(self.ROWS):
+            for col in range(self.COLS):
+                if self.state[row][col] != player:
+                    continue
+                for dr, dc in directions:
+                    seq_len = 1
+                    r, c = row + dr, col + dc
+                    while 0 <= r < self.ROWS and 0 <= c < self.COLS and self.state[r][c] == player:
+                        seq_len += 1
+                        r += dr
+                        c += dc
+                    if seq_len >= 2:
+                        count += 1
+        return count
 
     def _is_full(self) -> bool:
         """Verifica se o tabuleiro está completamente cheio"""
