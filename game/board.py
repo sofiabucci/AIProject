@@ -60,6 +60,7 @@ class Board:
     def is_valid_move(self, col: int) -> bool:
         """Verifica se uma jogada na coluna é válida"""
         return 0 <= col < self.COLS and self.state[0][col] == 0
+    
 
     def _check_winner(self, row: int, col: int) -> bool:
         """Verifica se a última jogada resultou em vitória"""
@@ -126,4 +127,4 @@ class Board:
         for row in self.state:
             board_str += "|" + "|".join(symbols[cell] for cell in row) + "|\n"
             board_str += "-" * (2 * self.COLS + 1) + "\n"
-        return board_str
+        return board_str 

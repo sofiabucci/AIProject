@@ -38,7 +38,11 @@ class AIPlayer(Player):
         self.agent = agent
     
     def get_move(self, board) -> int:
-        return self.agent.get_best_move(board)
+        move = self.agent.get_best_move(board)
+        if not board.is_valid_move(move):
+            raise ValueError(f"Agente sugeriu jogada inválida: {move}")
+        return move
+
     
     def __str__(self):
         return f"AI Player {self.player_id} ({self.agent.__class__.__name__})"

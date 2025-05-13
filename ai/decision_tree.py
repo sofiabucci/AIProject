@@ -1,6 +1,7 @@
 import math
 import pandas as pd
 from typing import Dict, List, Optional, Union
+from game.board import Board
 from collections import Counter
 
 class DecisionTree:
@@ -164,11 +165,22 @@ class DecisionTreeAgent:
         self.model.fit(X, y)
     
     def get_best_move(self, board: 'Board') -> int:
-        """
-        Predict best move using trained model
-        """
         if not self.model:
             raise ValueError("Model not trained")
         
-        features = pd.DataFrame([board.to_feature_vector()])
-        return self.model.predict(features)[0]
+        valid_moves = [col for col in range(board.columns) if board.is_valid_move(col)]
+        if not valid_moves:
+            raise ValueError("No valid moves available")
+        
+        # Predict the best move among valid moves
+        best_move = None
+        best_score = -float('inf')
+        for move in valid_moves:
+            # Simulate making the move and create a feature vector
+            simulated_board = board.simulate_move(move)
+            features = pd.DataFrame([simulated_board.to_feature_vector()])
+            predicted_score = self.model.predict(features)[0]
+            if predicted_score > best_score:
+                best_score = predicted_score
+                best_move = move
+        return best_move

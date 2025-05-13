@@ -2,6 +2,7 @@ import math
 import random
 from typing import Optional
 from game.board import Board
+from game.interface import GraphicalInterface
 
 class MCTSNode:
     def __init__(self, board: Board, parent: Optional['MCTSNode'] = None, 
@@ -33,15 +34,36 @@ class MCTSNode:
     
     def simulate(self) -> float:
         sim_board = self.board.copy()
-        current_player = sim_board.current_player  # jogador a ser avaliado
+        current_player = sim_board.current_player  # Jogador a ser avaliado
 
         while not sim_board.is_game_over:
             legal_moves = sim_board.get_legal_moves()
             if not legal_moves:
                 break
 
-            # Heurística simples: escolher colunas mais próximas do centro
-            move = sorted(legal_moves, key=lambda x: abs(x - sim_board.width // 2))[0]
+            # Avaliação heurística dos movimentos
+            def evaluate_move(move):
+                temp_board = sim_board.copy()
+                temp_board.drop_piece(move)
+
+                # Priorizar vitória imediata
+                if temp_board.winner == current_player:
+                    return float('inf')
+
+                # Bloquear vitória do adversário
+                for i in range(0,6) :
+                    board_adv = temp_board.copy()
+                    board_adv.drop_piece(i)
+                    # GraphicalInterface.draw_board(board_adv);
+                    if board_adv.winner != 0 and board_adv.winner != current_player:
+                        return float('-inf')
+                    
+
+                # Maximizar conectividade (valoriza peças agrupadas)
+                return temp_board.count_connected(current_player, 3) + 2 * temp_board.count_connected(current_player, 4)
+
+            # Escolher o melhor movimento com base na heurística
+            move = max(legal_moves, key=evaluate_move)
             sim_board.drop_piece(move)
 
         if sim_board.winner == current_player:
@@ -80,4 +102,4 @@ class MCTSAgent:
             # Backpropagation
             node.backpropagate(result)
         
-        return max(root.children, key=lambda c: c.visits).move
+        return max(root.children, key=lambda c: c.wins / c.visits).move
