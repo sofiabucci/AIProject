@@ -1,7 +1,7 @@
 from game.board import Board
 from game.player import HumanPlayer, AIPlayer
 from ai.mcts import MCTSAgent
-from ai.decision_tree import DecisionTreeAgent
+from ai.a_star import AStarAgent
 from game.interface import GraphicalInterface
 import pygame
 import sys
@@ -25,7 +25,7 @@ def main():
         
     else:  # IA vs IA
         player1 = AIPlayer(1, MCTSAgent(iterations=5000))
-        player2 = AIPlayer(2, DecisionTreeAgent())
+        player2 = AIPlayer(2, AStarAgent(max_depth=5))
     
     # Inicializa jogo
     board = Board()

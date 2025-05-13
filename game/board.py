@@ -1,48 +1,55 @@
-import numpy as np
-from typing import List, Tuple
-
 class Board:
     def __init__(self, rows: int = 6, columns: int = 7):
         self.rows = rows
         self.columns = columns
-        self.grid = np.zeros((rows, columns), dtype=int)
+        self.grid = [[0 for _ in range(columns)] for _ in range(rows)]
         self.current_player = 1
-        self.winner = 0
+        self.last_move = None  # Armazena a última jogada (row, col)
+        self.winner = None
         self.is_game_over = False
 
     def copy(self) -> 'Board':
         new_board = Board(self.rows, self.columns)
-        new_board.grid = self.grid.copy()
+        new_board.grid = [row[:] for row in self.grid]
         new_board.current_player = self.current_player
+        new_board.last_move = self.last_move
         new_board.winner = self.winner
         new_board.is_game_over = self.is_game_over
         return new_board
 
-    def drop_piece(self, column: int) -> bool:
-        if not self.is_valid_move(column):
-            return False
-
-        for row in range(self.rows-1, -1, -1):
+    def drop_piece(self, column: int) -> tuple:
+        """Insere uma peça na coluna especificada e retorna (row, col)"""
+        if column < 0 or column >= self.columns:
+            raise ValueError("Coluna inválida")
+            
+        for row in reversed(range(self.rows)):
             if self.grid[row][column] == 0:
                 self.grid[row][column] = self.current_player
-                if self.check_win(row, column):
+                self.last_move = (row, column)
+                
+                # Verifica vitória
+                if self.check_win():
                     self.winner = self.current_player
                     self.is_game_over = True
-                elif self.is_draw():
+                
+                # Verifica empate
+                elif all(self.grid[0][col] != 0 for col in range(self.columns)):
                     self.is_game_over = True
-                else:
-                    self.current_player = 3 - self.current_player
-                return True
-        return False
+                
+                return row, column
+        raise ValueError("Coluna cheia")
 
-    def is_valid_move(self, column: int) -> bool:
-        return 0 <= column < self.columns and self.grid[0][column] == 0
+    def check_win(self, row: int = None, col: int = None) -> bool:
+        """Verifica se há um vencedor a partir da última jogada ou das coordenadas especificadas"""
+        if row is None or col is None:
+            if self.last_move is None:
+                return False
+            row, col = self.last_move
 
-    def get_legal_moves(self) -> List[int]:
-        return [col for col in range(self.columns) if self.is_valid_move(col)]
-
-    def check_win(self, row: int, col: int) -> bool:
         player = self.grid[row][col]
+        if player == 0:
+            return False
+
         directions = [
             [(0, 1), (0, -1)],  # Horizontal
             [(1, 0), (-1, 0)],   # Vertical
@@ -65,66 +72,50 @@ class Board:
                 return True
         return False
 
-    def is_draw(self) -> bool:
-        return all(self.grid[0][col] != 0 for col in range(self.columns))
+    def is_valid_move(self, column: int) -> bool:
+        """Verifica se um movimento é válido"""
+        return 0 <= column < self.columns and self.grid[0][column] == 0
 
-    def evaluate_position(self, player: int) -> float:
-        score = 0
-        opponent = 3 - player
-        
-        # Avalia todas as possíveis sequências de 4 células
-        for r in range(self.rows):
-            for c in range(self.columns):
-                # Verifica horizontal
-                if c <= self.columns - 4:
-                    segment = [self.grid[r][c+i] for i in range(4)]
-                    score += self.evaluate_segment(segment, player, opponent)
-                # Verifica vertical
-                if r <= self.rows - 4:
-                    segment = [self.grid[r+i][c] for i in range(4)]
-                    score += self.evaluate_segment(segment, player, opponent)
-                # Verifica diagonal ascendente
-                if r <= self.rows - 4 and c <= self.columns - 4:
-                    segment = [self.grid[r+i][c+i] for i in range(4)]
-                    score += self.evaluate_segment(segment, player, opponent)
-                # Verifica diagonal descendente
-                if r >= 3 and c <= self.columns - 4:
-                    segment = [self.grid[r-i][c+i] for i in range(4)]
-                    score += self.evaluate_segment(segment, player, opponent)
-        
-        return score
+    def get_legal_moves(self) -> list:
+        """Retorna todas as colunas com movimentos válidos"""
+        return [col for col in range(self.columns) if self.is_valid_move(col)]
 
-    def evaluate_segment(self, segment: List[int], player: int, opponent: int) -> float:
-        player_count = segment.count(player)
-        opponent_count = segment.count(opponent)
-        
-        if player_count == 4:
-            return 100
-        if opponent_count == 4:
-            return -100
-        
-        if player_count == 3 and opponent_count == 0:
-            return 5
-        if player_count == 2 and opponent_count == 0:
-            return 2
-        if player_count == 1 and opponent_count == 0:
-            return 1
-        
-        if opponent_count == 3 and player_count == 0:
-            return -5
-        if opponent_count == 2 and player_count == 0:
-            return -2
-        if opponent_count == 1 and player_count == 0:
-            return -1
-        
-        return 0
+    def count_connected(self, player: int, length: int) -> int:
+        """Conta sequências de 'length' peças conectadas para o jogador"""
+        count = 0
+        # Verifica horizontal
+        for row in range(self.rows):
+            for col in range(self.columns - length + 1):
+                if all(self.grid[row][col+i] == player for i in range(length)):
+                    count += 1
+        # Verifica vertical
+        for row in range(self.rows - length + 1):
+            for col in range(self.columns):
+                if all(self.grid[row+i][col] == player for i in range(length)):
+                    count += 1
+        # Verifica diagonal /
+        for row in range(self.rows - length + 1):
+            for col in range(self.columns - length + 1):
+                if all(self.grid[row+i][col+i] == player for i in range(length)):
+                    count += 1
+        # Verifica diagonal \
+        for row in range(length - 1, self.rows):
+            for col in range(self.columns - length + 1):
+                if all(self.grid[row-i][col+i] == player for i in range(length)):
+                    count += 1
+        return count
 
-    def to_feature_vector(self) -> List[int]:
+    def simulate_move(self, column: int) -> 'Board':
+        """Cria uma cópia do tabuleiro com o movimento simulado"""
+        new_board = self.copy()
+        new_board.drop_piece(column)
+        new_board.current_player = 3 - self.current_player  # Alterna jogador
+        return new_board
+
+    def to_feature_vector(self) -> list:
+        """Converte o tabuleiro para um vetor de features"""
         features = []
-        # Adiciona o estado do tabuleiro
-        features.extend(self.grid.flatten().tolist())
-        # Adiciona características estratégicas
+        for row in self.grid:
+            features.extend(row)
         features.append(self.current_player)
-        features.append(self.evaluate_position(1))
-        features.append(self.evaluate_position(2))
         return features
