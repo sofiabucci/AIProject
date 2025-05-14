@@ -4,7 +4,6 @@ from game.board import Board
 from mcts import MCTSAgent
 from a_star import AStar
 from decision_tree import DecisionTree
-import random
 
 def generate_training_data(num_games: int = 1000) -> pd.DataFrame:
     data = []
