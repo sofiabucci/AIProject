@@ -10,12 +10,14 @@ class DecisionTree:
         self.tree = None
     
     def fit(self, X: pd.DataFrame, y: pd.Series) -> None:
+        """Train the decision tree on labeled data"""
         dataset = pd.concat([X, y], axis=1)
         self.tree = self._build_tree(dataset, depth=0)
     
     def _build_tree(self, dataset: pd.DataFrame, depth: int) -> Dict:
         X, y = dataset.iloc[:, :-1], dataset.iloc[:, -1]
         
+        # Stopping conditions
         if (self.max_depth is not None and depth >= self.max_depth) or \
            len(y) < self.min_samples_split or \
            len(set(y)) == 1:
@@ -77,28 +79,44 @@ class DecisionTree:
         
         for count in class_counts.values():
             p = count / total
-            entropy += -p * math.log2(p)
+            entropy += -p * math.log2(p + 1e-10)  # Added small epsilon to avoid log(0)
         
         return entropy
     
     def _create_leaf_node(self, y: pd.Series) -> Dict:
+        """Create a leaf node that returns a score between -1 and 1"""
         class_counts = Counter(y)
-        most_common = max(class_counts.items(), key=lambda x: x[1])[0]
+        total = len(y)
         
-        if isinstance(most_common, (int, float)):
+        # For regression (continuous output)
+        if isinstance(y.iloc[0], (int, float)):
+            avg_value = sum(y)/total
+            # Normalize to [-1, 1] range if needed
             return {
-                "class": sum(y)/len(y),
-                "samples": len(y)
+                "class": avg_value,
+                "samples": total,
+                "confidence": 1 - (sum((y - avg_value)**2)/total)  # Variance-based confidence
             }
+        
+        # For classification (discrete output)
+        most_common = max(class_counts.items(), key=lambda x: x[1])[0]
+        confidence = class_counts[most_common] / total
+        
+        # Convert to numerical score between -1 and 1
+        # Assuming binary classification where class 2 is "good" and class 1 is "bad"
+        score = (2 * confidence - 1) if most_common == 2 else (1 - 2 * confidence)
+        
         return {
-            "class": most_common,
-            "samples": len(y)
+            "class": score,  # Now returns a score between -1 and 1
+            "samples": total,
+            "confidence": confidence
         }
     
-    def predict(self, X: pd.DataFrame) -> List:
+    def predict(self, X: pd.DataFrame) -> List[float]:
+        """Predict scores between -1 (bad) and 1 (good)"""
         return [self._predict_single(x, self.tree) for _, x in X.iterrows()]
     
-    def _predict_single(self, x: pd.Series, tree: Dict) -> Union[int, float]:
+    def _predict_single(self, x: pd.Series, tree: Dict) -> float:
         if "class" in tree:
             return tree["class"]
         

@@ -1,5 +1,6 @@
 from typing import Optional
 from abc import ABC, abstractmethod
+from ai.decision_tree import DecisionTree
 
 class Player(ABC):
     """
@@ -30,19 +31,18 @@ class HumanPlayer(Player):
                 print("Please enter a valid number.")
 
 class AIPlayer(Player):
-    """
-    AI player that uses specified agent
-    """
-    def __init__(self, player_id: int, agent):
+    def __init__(self, player_id: int, agent, decision_tree: Optional[DecisionTree] = None):
         super().__init__(player_id)
         self.agent = agent
+        self.decision_tree = decision_tree
+        if hasattr(agent, 'decision_tree'):
+            agent.decision_tree = decision_tree
     
     def get_move(self, board) -> int:
+        if self.decision_tree and hasattr(self.agent, 'decision_tree'):
+            self.agent.decision_tree = self.decision_tree
+        
         move = self.agent.get_best_move(board)
         if not board.is_valid_move(move):
-            raise ValueError(f"Agente sugeriu jogada inválida: {move}")
+            raise ValueError(f"Agent suggested invalid move: {move}")
         return move
-
-    
-    def __str__(self):
-        return f"AI Player {self.player_id} ({self.agent.__class__.__name__})"

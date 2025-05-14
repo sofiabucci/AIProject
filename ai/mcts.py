@@ -1,10 +1,10 @@
-import math
-import random
-from typing import Optional
-import numpy as np
-import pandas as pd
 from game.board import Board
 from ai.decision_tree import DecisionTree
+from typing import Optional
+import math
+import random
+import pandas as pd
+
 
 class MCTSNode:
     def __init__(self, board: Board, parent: Optional['MCTSNode'] = None, 
@@ -21,12 +21,7 @@ class MCTSNode:
     def uct_value(self, exploration: float = 1.41) -> float:
         if self.visits == 0:
             return float('inf')
-        heuristic_value = self._get_heuristic_value() if self.decision_tree else 0
-        return (self.wins / self.visits) + exploration * math.sqrt(math.log(self.parent.visits) / self.visits) + 0.3 * heuristic_value
-    
-    def _get_heuristic_value(self) -> float:
-        features = self.board.to_feature_vector()
-        return self.decision_tree.predict(pd.DataFrame([features]))[0] / 100
+        return (self.wins / self.visits) + exploration * math.sqrt(math.log(self.parent.visits) / self.visits)
     
     def select_child(self) -> 'MCTSNode':
         return max(self.children, key=lambda child: child.uct_value())
@@ -50,17 +45,22 @@ class MCTSNode:
                 break
 
             if self.decision_tree:
-                scores = []
+                # Use decision tree to evaluate moves
+                scored_moves = []
                 for move in legal_moves:
                     temp_board = sim_board.copy()
                     temp_board.drop_piece(move)
-                    features = temp_board.to_feature_vector()
+                    features = temp_board.to_feature_vector(current_player)
                     score = self.decision_tree.predict(pd.DataFrame([features]))[0]
-                    scores.append(score)
-                move = legal_moves[np.argmax(scores)]
+                    scored_moves.append((score, move))
+                
+                # Choose move with highest score
+                scored_moves.sort(reverse=True, key=lambda x: x[0])
+                move = scored_moves[0][1]
             else:
+                # Fallback to heuristic
                 move = max(legal_moves, key=lambda m: self._evaluate_move(sim_board, m, current_player))
-
+            
             sim_board.drop_piece(move)
 
         if sim_board.winner == current_player:
@@ -73,14 +73,12 @@ class MCTSNode:
         temp_board = board.copy()
         temp_board.drop_piece(move)
         
-        if temp_board.check_win(temp_board.current_player):
+        if temp_board.winner == player:
             return float('inf')
         
         opponent = 3 - player
         for opp_move in temp_board.get_legal_moves():
-            opp_temp_board = temp_board.copy()
-            opp_temp_board.drop_piece(opp_move)
-            if opp_temp_board.check_win(opponent):
+            if temp_board.is_winning_move(opp_move, opponent):
                 return float('-inf')
         
         return temp_board.evaluate_position(player)
@@ -92,7 +90,7 @@ class MCTSNode:
             self.parent.backpropagate(1.0 - result)
 
 class MCTSAgent:
-    def __init__(self, iterations: int = 2000, exploration: float = 1.41, 
+    def __init__(self, iterations: int = 1000, exploration: float = 1.41, 
                  decision_tree: Optional[DecisionTree] = None):
         self.iterations = iterations
         self.exploration = exploration

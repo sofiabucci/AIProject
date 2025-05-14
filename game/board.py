@@ -7,38 +7,26 @@ class Board:
     WIN_LENGTH = 4
     
     def __init__(self, state: Optional[List[List[int]]] = None):
-        """
-        Inicializa o tabuleiro do Connect Four.
-        
-        Args:
-            state: Estado inicial do tabuleiro (opcional)
-        """
         self.state = state or [[0 for _ in range(self.COLS)] for _ in range(self.ROWS)]
-        self._current_player = 1  # Jogador 1 começa
+        self._current_player = 1
         self._winner = None
         self._game_over = False
-        self._last_move = None  # Armazena a última jogada (row, col)
+        self._last_move = None
+
+    def __lt__(self, other):
+        """Implement less-than for heapq comparisons"""
+        # We don't actually care about the comparison, just need to define it
+        return id(self) < id(other)
 
     @property
     def current_player(self) -> int:
-        """Retorna o jogador atual (1 ou 2)"""
         return self._current_player
 
     @property
     def last_move(self) -> Optional[Tuple[int, int]]:
-        """Retorna a última jogada (linha, coluna)"""
         return self._last_move
 
     def drop_piece(self, col: int) -> bool:
-        """
-        Tenta colocar uma peça na coluna especificada.
-        
-        Args:
-            col: Coluna onde a peça será colocada (0-6)
-            
-        Returns:
-            True se a jogada foi válida, False caso contrário
-        """
         if self._game_over or not self.is_valid_move(col):
             return False
             
@@ -53,17 +41,14 @@ class Board:
                 elif self._is_full():
                     self._game_over = True
                 else:
-                    self._current_player = 3 - self._current_player  # Alterna jogador
+                    self._current_player = 3 - self._current_player
                 return True
         return False
 
     def is_valid_move(self, col: int) -> bool:
-        """Verifica se uma jogada na coluna é válida"""
         return 0 <= col < self.COLS and self.state[0][col] == 0
-    
 
     def _check_winner(self, row: int, col: int) -> bool:
-        """Verifica se a última jogada resultou em vitória"""
         directions = [
             (0, 1),  # Horizontal
             (1, 0),  # Vertical
@@ -73,8 +58,7 @@ class Board:
         player = self.state[row][col]
         
         for dr, dc in directions:
-            count = 1  # Conta a peça atual
-            # Verifica em ambas as direções
+            count = 1
             for direction in [1, -1]:
                 r, c = row + dr * direction, col + dc * direction
                 while 0 <= r < self.ROWS and 0 <= c < self.COLS and self.state[r][c] == player:
@@ -85,41 +69,129 @@ class Board:
                         return True
         return False
 
+    def is_winning_move(self, col: int, player: int) -> bool:
+        """Check if dropping a piece in this column would win the game"""
+        temp_board = self.copy()
+        if temp_board.drop_piece(col):
+            return temp_board.winner == player
+        return False
+
     def _is_full(self) -> bool:
-        """Verifica se o tabuleiro está completamente cheio"""
         return all(cell != 0 for cell in self.state[0])
 
     def get_legal_moves(self) -> List[int]:
-        """Retorna uma lista de colunas com jogadas válidas"""
-        moves = [col for col in range(self.COLS) if self.is_valid_move(col)]
-        if not moves and not self._game_over:
-            raise RuntimeError("Invalid game state - no moves but game not over")
-        return moves
+        return [col for col in range(self.COLS) if self.is_valid_move(col)]
 
     def copy(self) -> 'Board':
-        """Cria uma cópia profunda do tabuleiro"""
         return Board([row[:] for row in self.state])
 
-    def to_feature_vector(self) -> List[int]:
-        """Converte o estado do tabuleiro para um vetor 1D"""
-        return [cell for row in self.state for cell in row]
+    def evaluate_position(self, player: int) -> float:
+        """Simple position evaluation function"""
+        score = 0
+        opponent = 3 - player
+        
+        # Center column preference
+        center_col = self.COLS // 2
+        center_count = sum(self.state[r][center_col] == player for r in range(self.ROWS))
+        score += center_count * 0.5
+        
+        # Check for potential wins
+        for col in self.get_legal_moves():
+            if self.is_winning_move(col, player):
+                score += 100
+            elif self.is_winning_move(col, opponent):
+                score -= 80
+                
+        return score
 
     def to_numpy(self) -> np.ndarray:
-        """Converte o tabuleiro para um array numpy"""
         return np.array(self.state)
+    
+    def to_feature_vector(self, player_perspective: int = 1) -> List[float]:
+        """Convert board state to feature vector for ML model"""
+        features = []
+        opponent = 3 - player_perspective
+        
+        # Flatten the board state from perspective player
+        for row in self.state:
+            for cell in row:
+                if cell == player_perspective:
+                    features.append(1.0)
+                elif cell == opponent:
+                    features.append(-1.0)
+                else:
+                    features.append(0.0)
+        
+        # Add current player indicator
+        features.append(1.0 if self.current_player == player_perspective else -1.0)
+        
+        # Add pattern features (simplified)
+        patterns = self._detect_patterns(player_perspective)
+        features.extend(patterns)
+        
+        return features
+    
+    def _detect_patterns(self, player: int) -> List[float]:
+        """Detect common patterns in the board"""
+        opponent = 3 - player
+        patterns = [0.0] * 8  # Simplified pattern detection
+        
+        # Check for potential wins
+        for col in self.get_legal_moves():
+            if self.is_winning_move(col, player):
+                patterns[0] = 1.0  # Immediate win
+            elif self.is_winning_move(col, opponent):
+                patterns[1] = 1.0  # Block opponent win
+        
+        # Count potential lines
+        directions = [(0, 1), (1, 0), (1, 1), (1, -1)]
+        for dr, dc in directions:
+            player_count, opp_count = self._count_lines(player, opponent, dr, dc)
+            if player_count >= 3:
+                patterns[2] += 0.5  # 3 in a line
+            if opp_count >= 3:
+                patterns[3] += 0.5
+        
+        return patterns
+    
+    def _count_lines(self, player: int, opponent: int, dr: int, dc: int) -> Tuple[int, int]:
+        """Count potential lines for player and opponent"""
+        player_lines = 0
+        opp_lines = 0
+        
+        for r in range(self.ROWS):
+            for c in range(self.COLS):
+                if self.state[r][c] == 0:  # Empty cell
+                    # Check player potential
+                    if self._check_potential_line(r, c, player, dr, dc):
+                        player_lines += 1
+                    # Check opponent potential
+                    if self._check_potential_line(r, c, opponent, dr, dc):
+                        opp_lines += 1
+        
+        return player_lines, opp_lines
+    
+    def _check_potential_line(self, row: int, col: int, player: int, dr: int, dc: int) -> bool:
+        """Check if this empty cell could complete a line for player"""
+        count = 0
+        for i in range(1, 4):
+            r, c = row + dr * i, col + dc * i
+            if 0 <= r < self.ROWS and 0 <= c < self.COLS:
+                if self.state[r][c] == player:
+                    count += 1
+                elif self.state[r][c] != 0:
+                    return False
+        return count >= 2
 
     @property
     def is_game_over(self) -> bool:
-        """Indica se o jogo terminou"""
         return self._game_over
 
     @property
     def winner(self) -> Optional[int]:
-        """Retorna o vencedor (1, 2) ou None se empate/jogo em andamento"""
         return self._winner
 
     def __str__(self) -> str:
-        """Representação visual do tabuleiro"""
         symbols = {0: '.', 1: 'X', 2: 'O'}
         board_str = "\n" + "  ".join(str(i) for i in range(self.COLS)) + "\n"
         board_str += "-" * (2 * self.COLS + 1) + "\n"
@@ -127,4 +199,4 @@ class Board:
         for row in self.state:
             board_str += "|" + "|".join(symbols[cell] for cell in row) + "|\n"
             board_str += "-" * (2 * self.COLS + 1) + "\n"
-        return board_str 
+        return board_str
