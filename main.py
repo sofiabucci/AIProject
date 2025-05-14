@@ -25,7 +25,7 @@ def main():
         
     else:  # IA vs IA
         player1 = AIPlayer(1, MCTSAgent(iterations=5000))
-        player2 = AIPlayer(2, AStarAgent(max_depth=5))
+        player2 = AIPlayer(2, AStarAgent())
     
     # Inicializa jogo
     board = Board()

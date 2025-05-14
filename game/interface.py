@@ -49,8 +49,8 @@ class GraphicalInterface:
 
         buttons = [
             {"text": "Player vs Player", "rect": pygame.Rect(0, 0, 500, 60), "mode": 1},
-            {"text": "Player vs Bot", "rect": pygame.Rect(0, 0, 500, 60), "mode": 2},
-            {"text": "Bot vs Bot (MCTS vs A*)", "rect": pygame.Rect(0, 0, 500, 60), "mode": 3},
+            {"text": "Player vs MCTS", "rect": pygame.Rect(0, 0, 500, 60), "mode": 2},
+            {"text": "MCTS vs A*", "rect": pygame.Rect(0, 0, 500, 60), "mode": 3},
         ]
 
         mouse_pos = pygame.mouse.get_pos()
@@ -75,70 +75,27 @@ class GraphicalInterface:
         pygame.display.update()
         return buttons
 
-    def handle_menu_click(self, pos):
-        x, y = pos
-        if 220 <= y <= 280:
-            self.game_mode = 1  # Player vs Player
-            self.board = Board()
-        elif 320 <= y <= 380:
-            self.game_mode = 2  # Player vs Bot
-            self.board = Board()
-        elif 420 <= y <= 480:
-            self.game_mode = 3  # Bot vs Bot
-            self.board = Board()
-            self.run_bot_vs_bot()
-
-    def run_bot_vs_bot(self):
-        self.astar_agent = AStar(self.board, 2)
-        mcts_moves = 0
-        astar_moves = 0
-        
-        while not self.board.is_game_over:
-            self.draw_board()
-            pygame.display.flip()
+    def get_game_mode(self) -> int:
+        """Obtém o modo de jogo selecionado pelo usuário"""
+        while True:
+            buttons = self.draw_menu()
             
-            # Adiciona um pequeno delay para visualização
-            pygame.time.delay(self.ai_delay)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    pos = pygame.mouse.get_pos()
+                    for button in buttons:
+                        if button["rect"].collidepoint(pos):
+                            # Efeito de clique
+                            pygame.draw.rect(self.screen, (200, 200, 255), button["rect"], border_radius=10)
+                            pygame.display.update(button["rect"])
+                            pygame.time.delay(100)
+                            return button["mode"]
 
-            if self.board.current_player == 1:  # MCTS
-                move = self.mcts_agent.get_best_move(self.board)
-                mcts_moves += 1
-                move_type = "MCTS"
-            else:  # A*
-                move = self.astar_agent.search()
-                astar_moves += 1
-                move_type = "A*"
 
-            self.animate_piece_drop(self.board, move, self.board.get_next_open_row(move))
-            self.board.drop_piece(move)
-
-        self.draw_board()
-        
-        # Mostra o resultado
-        overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))
-        self.screen.blit(overlay, (0, 0))
-
-        if self.board.winner:
-            winner_text = "MCTS wins!" if self.board.winner == 1 else "A* wins!"
-            color = self.PLAYER1_COLOR if self.board.winner == 1 else self.PLAYER2_COLOR
-        else:
-            winner_text = "It's a draw!"
-            color = self.TEXT_COLOR
-
-        stats_text = f"MCTS moves: {mcts_moves} | A* moves: {astar_moves}"
-
-        label = self.game_font.render(winner_text, True, color)
-        stats_label = self.info_font.render(stats_text, True, self.TEXT_COLOR)
-        
-        self.screen.blit(label, (self.width // 2 - label.get_width() // 2,
-                               self.height // 2 - label.get_height() // 2))
-        self.screen.blit(stats_label, (self.width // 2 - stats_label.get_width() // 2,
-                                     self.height // 2 + 50))
-
-        pygame.display.update()
-        pygame.time.delay(3000)  # Mostra resultado por 3 segundos
-        self.game_mode = None  # Volta ao menu
 
     def draw_board(self):
         self.screen.fill(self.BACKGROUND)
@@ -201,90 +158,77 @@ class GraphicalInterface:
             pygame.display.update()
             pygame.time.delay(10)
 
-    def get_human_move(self) -> Optional[int]:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                pos = event.pos[0]
-                col = pos // self.SQUARESIZE
-                if self.board.is_valid_move(col):
-                    return col
+    def get_human_move(self, board: Board) -> int:
+        """Obtém o movimento do jogador humano"""
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    pos = event.pos[0]
+                    col = int(pos // self.SQUARESIZE)
+                    if board.is_valid_move(col):
+                        return col
 
-        # Mostra peça flutuante
-        pos = pygame.mouse.get_pos()[0]
-        if 0 <= pos < self.width:
-            self.draw_board()
-            color = self.PLAYER1_COLOR if self.board.current_player == 1 else self.PLAYER2_COLOR
-            temp_circle = pygame.Surface((self.RADIUS * 2, self.RADIUS * 2), pygame.SRCALPHA)
-            transparent_color = (*color, 128)  
-            pygame.draw.circle(temp_circle, transparent_color, (self.RADIUS, self.RADIUS), self.RADIUS)
-            self.screen.blit(temp_circle, (pos - self.RADIUS, self.SQUARESIZE // 2 - self.RADIUS))
+            # Mostra a peça flutuante com efeito de hover
+            pos = pygame.mouse.get_pos()[0]
+            if 0 <= pos < self.width:
+                pygame.draw.rect(self.screen, (30, 32, 50), (0, 0, self.width, self.SQUARESIZE))
+                
+                # Desenha um indicador na coluna
+                col_hover = int(pos // self.SQUARESIZE)
+                indicator_x = col_hover * self.SQUARESIZE + self.SQUARESIZE // 2
+                pygame.draw.circle(self.screen, (100, 100, 150, 150), (indicator_x, 30), 5)
+                
+                # Desenha a peça flutuante
+                color = self.PLAYER1_COLOR if board.current_player == 1 else self.PLAYER2_COLOR
+                pygame.draw.circle(self.screen, color, (pos, int(self.SQUARESIZE/2)), self.RADIUS)
+                
+                # Sombra da peça
+                shadow_color = (180, 50, 40) if board.current_player == 1 else (200, 160, 0)
+                pygame.draw.circle(self.screen, shadow_color, (pos + 2, int(self.SQUARESIZE/2) + 2), self.RADIUS)
+            
             pygame.display.update()
 
-        return None
-
-    def run(self):
-        while True:
-            if self.game_mode is None:
-                buttons = self.draw_menu()
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        pygame.quit()
-                        sys.exit()
-                    if event.type == pygame.MOUSEBUTTONDOWN:
-                        self.handle_menu_click(event.pos)
-            else:
-                self.draw_board()
-
-                if self.board.is_game_over:
-                    self.show_game_over(self.board.winner)
-                    self.game_mode = None
-                    continue
-
-                if self.game_mode == 1:  # Player vs Player
-                    move = self.get_human_move()
-                    if move is not None:
-                        self.animate_piece_drop(self.board, move, self.board.get_next_open_row(move))
-                        self.board.drop_piece(move)
-
-                elif self.game_mode == 2:  # Player vs Bot
-                    if self.board.current_player == 1:  # Humano
-                        move = self.get_human_move()
-                        if move is not None:
-                            self.animate_piece_drop(self.board, move, self.board.get_next_open_row(move))
-                            self.board.drop_piece(move)
-                    else:  # Bot (MCTS)
-                        pygame.time.delay(500)  # Pequeno delay para visualização
-                        move = self.mcts_agent.get_best_move(self.board)
-                        self.animate_piece_drop(self.board, move, self.board.get_next_open_row(move))
-                        self.board.drop_piece(move)
-
-                elif self.game_mode == 3:  # Bot vs Bot (já tratado em run_bot_vs_bot)
-                    pass
-
-                pygame.display.update()
-
     def show_game_over(self, winner: Optional[int]):
+        """Mostra mensagem de fim de jogo com overlay"""
+        # Cria uma superfície semi-transparente
         overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))
+        overlay.fill((0, 0, 0, 180))  # Preto com 70% de opacidade
         self.screen.blit(overlay, (0, 0))
-
+        
         if winner:
-            text = f"Player {winner} wins!" if self.game_mode != 3 else f"{'MCTS' if winner == 1 else 'A*'} wins!"
+            text = f"Jogador {winner} venceu!"
             color = self.PLAYER1_COLOR if winner == 1 else self.PLAYER2_COLOR
         else:
-            text = "It's a draw!"
+            text = "Empate!"
             color = self.TEXT_COLOR
-
+        
+        # Texto principal
         label = self.game_font.render(text, True, color)
-        self.screen.blit(label, (self.width // 2 - label.get_width() // 2,
-                               self.height // 2 - label.get_height() // 2))
-
+        self.screen.blit(label, (self.width//2 - label.get_width()//2, 
+                           self.height//2 - label.get_height()//2 - 50))
+        
+        # Texto secundário
+        subtext = self.button_font.render("Clique para continuar", True, (200, 200, 200))
+        self.screen.blit(subtext, (self.width//2 - subtext.get_width()//2, 
+                              self.height//2 + 50))
+        
         pygame.display.update()
-        pygame.time.wait(3000)
-
-if __name__ == "__main__":
-    interface = GraphicalInterface()
-    interface.run()
+        
+        # Espera por clique ou 3 segundos
+        waiting = True
+        start_time = pygame.time.get_ticks()
+        while waiting:
+            current_time = pygame.time.get_ticks()
+            if current_time - start_time > 3000:  # 3 segundos
+                waiting = False
+                
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    waiting = False
