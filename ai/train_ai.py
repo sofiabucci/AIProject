@@ -10,7 +10,7 @@ def load_data(filename: str = "data/connect4_training_data.csv") -> pd.DataFrame
         raise FileNotFoundError(f"Training data file {filename} not found. Run generate_data.py first.")
     return pd.read_csv(filename)
 
-def train_decision_tree(data: pd.DataFrame, model_file: str = "connect4_dt_model.pkl") -> DecisionTree:
+def train_decision_tree(data: pd.DataFrame, model_file: str = "data/connect4_dt_model.pkl") -> DecisionTree:
     """Train and evaluate a decision tree without scikit-learn"""
     # Manual train-test split
     test_size = 0.2
