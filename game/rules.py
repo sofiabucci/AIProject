@@ -44,12 +44,12 @@ def get_ai_column(board: np.ndarray, game_mode: int) -> int:
         return m.mcts(board)
     elif game_mode == 3:  # MCTS vs A*
         # Count pieces to determine whose turn it is
-        x_count = np.count_nonzero(board == 1)
-        o_count = np.count_nonzero(board == 2)
+        x_count = np.count_nonzero(board == 2)
+        o_count = np.count_nonzero(board == 3)
         if x_count == o_count:  # MCTS's turn (X)
             return m.mcts(board)
         else:  # A*'s turn (O)
-            return g.a_star(board, c.AI_PIECE, c.HUMAN_PIECE)
+            return g.a_star(board, c.MCTS_PIECE, c.ASTAR_PIECE)
 
 
 
@@ -88,7 +88,7 @@ def drop_piece(board: np.ndarray, row: int, col: int, piece: int) -> None:
 
 def is_game_tied(board: np.ndarray) -> bool:
 	"""Assert if the game is tied"""
-	if winning_move(board, c.AI_PIECE) or winning_move(board, c.HUMAN_PIECE): return False
+	if winning_move(board, c.MCTS_PIECE) or winning_move(board, c.ASTAR_PIECE) or winning_move(board, c.HUMAN_PIECE): return False
 	for i in range(len(board)):
 		for j in range(len(board[0])):
 			if board[i][j]==0: return False
