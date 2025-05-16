@@ -1,113 +1,186 @@
-from game.board import Board
-from ai.decision_tree import DecisionTree
-from typing import Optional
-import math
-import random
-import pandas as pd
+import time, math, numpy as np, random, itertools
+from game import constants as c
+from game import rules as game
+from math import sqrt, log
+from ai import heuristic as h
 
 
-class MCTSNode:
-    def __init__(self, board: Board, parent: Optional['MCTSNode'] = None, 
-                 move: Optional[int] = None, decision_tree: Optional[DecisionTree] = None):
-        self.board = board.copy()
+class Node:
+    def __init__(self, board, last_player, parent=None) -> None:
+        self.board = board
         self.parent = parent
-        self.move = move
         self.children = []
         self.visits = 0
-        self.wins = 0.0
-        self.untried_moves = board.get_legal_moves()
-        self.decision_tree = decision_tree
-    
-    def uct_value(self, exploration: float = 1.41) -> float:
-        if self.visits == 0:
-            return float('inf')
-        return (self.wins / self.visits) + exploration * math.sqrt(math.log(self.parent.visits) / self.visits)
-    
-    def select_child(self) -> 'MCTSNode':
-        return max(self.children, key=lambda child: child.uct_value())
-    
-    def expand(self) -> 'MCTSNode':
-        move = random.choice(self.untried_moves)
-        new_board = self.board.copy()
-        new_board.drop_piece(move)
-        child = MCTSNode(new_board, self, move, self.decision_tree)
-        self.untried_moves.remove(move)
-        self.children.append(child)
-        return child
-    
-    def simulate(self) -> float:
-        sim_board = self.board.copy()
-        current_player = sim_board.current_player
+        self.wins = 0  
+        self.current_player = 1 if last_player == 2 else 2
 
-        while not sim_board.is_game_over:
-            legal_moves = sim_board.get_legal_moves()
-            if not legal_moves:
-                break
+    def __str__(self) -> str:
+        string = "Vitórias: " + str(self.wins) + '\n'
+        string += "Total: " + str(self.visits) + '\n'
+        string += "Pontuação: " + str(self.ucb()) + '\n'
+        string += "Probabilidade de vitória: " + str(self.score()) + '\n'
+        return string
 
-            if self.decision_tree:
-                # Use decision tree to evaluate moves
-                scored_moves = []
-                for move in legal_moves:
-                    temp_board = sim_board.copy()
-                    temp_board.drop_piece(move)
-                    features = temp_board.to_feature_vector(current_player)
-                    score = self.decision_tree.predict(pd.DataFrame([features]))[0]
-                    scored_moves.append((score, move))
-                
-                # Choose move with highest score
-                #scored_moves.sort(reverse=True, key=lambda x: x[0])
-                move = max(scored_moves, key=lambda s,m: s + self._evaluate_move(sim_board,m,current_player))
+    def add_children(self) -> None:
+        """add each possible move to a list of possible children for the current node/state"""  
+        if (len(self.children) != 0) or (game.available_moves(self.board) == -1): return   # se não existirem jogadas possíveis ou se os filhos já tiverem sido adicionados
+        for col in game.available_moves(self.board):  # itera sobre todas as colunas possíveis a serem jogadas
+            if self.current_player == c.HUMAN_PIECE:  
+                copy_board = game.simulate_move(self.board, c.AI_PIECE, col)
+            else: 
+                copy_board = game.simulate_move(self.board, c.HUMAN_PIECE, col)    # cria uma cópia do tabuleiro atual e adiciona a nova jogada a ele
+            self.children.append((Node(board=copy_board, last_player=self.current_player, parent=self), col))  # adiciona cada tabuleiro gerado a uma lista, junto com a identificação da coluna que o gerou
+
+    def select_children(self):
+        """randomly select a maximum of 4 children"""
+        if (len(self.children) > 4):
+            return random.sample(self.children, 4)
+        return self.children
+    
+    def ucb(self) -> float:
+        """calculate the Upper Confidence Bound of the node"""
+        if self.visits == 0: return float('inf')
+        exploitation = self.wins / self.visits
+        exploration = sqrt(2) * sqrt(2 * log(self.parent.visits / self.visits, math.e)) if self.parent else 0
+        return exploitation + exploration
+    
+    def score(self) -> float:
+        """calculate the score of the node"""
+        if self.visits == 0: return 0
+        return self.wins / self.visits
+
+
+
+class MCTS:
+    def __init__(self, root: Node) -> None:
+        self.root = root
+
+
+    def start(self, max_time: int):           
+        """simulate 6 times through each children of the root, before running mcts"""
+        self.root.add_children()              
+        for child in self.root.children:                                  # itera sobre todos os filhos da root
+            if game.winning_move(child[0].board, c.AI_PIECE): return child[1]   # se alguma jogada já for vitoriosa, retorna
+            for _ in range(6):                                            # simula 6 vezes sobre cada filho
+                result = self.rollout(child[0])
+                self.back_propagation(child[0], result)
+        return self.search(max_time)                                      # inicia mcts
+    
+
+    def search(self, max_time: int) -> int:
+        """iterate through the tree of possible plays"""
+        start_time = time.time()
+        while time.time() - start_time < max_time:  
+            selected_node = self.select(self.root)    # seleciona o nó folha a ser estudado nessa iteração
+            if selected_node.visits == 0:             # se o nó ainda não tiver sido visitado numa simulação:
+                result = self.rollout(selected_node)              # simula
+                self.back_propagation(selected_node, result)      # retropropagação da visita/vitória
             else:
-                # Fallback to heuristic
-                move = max(legal_moves, key=lambda m: self._evaluate_move(sim_board, m, current_player))
-            
-            sim_board.drop_piece(move)
+                selected_children = self.expand(selected_node)     # se o nó já tiver sido simulado, expande e escolhe 4 filhos para simular
+                for child in selected_children:
+                    result = self.rollout(child[0])              # simula em cada um dos 4 filhos escolhidos
+                    self.back_propagation(child[0], result)      # retropropagação
+        return self.best_move()                                  # das possíveis jogadas, retorna a que gerou maior vitorias/visitas
 
-        if sim_board.winner == current_player:
-            return 1.0
-        elif sim_board.winner == 0:
-            return 0.5
-        return 0.0
-    
-    def _evaluate_move(self, board: Board, move: int, player: int) -> float:
-        temp_board = board.copy()
-        temp_board.drop_piece(move)
-        
-        if temp_board.winner == player:
-            return float('inf')
-        
-        opponent = 3 - player
-        for opp_move in temp_board.get_legal_moves():
-            if temp_board.is_winning_move(opp_move, opponent):
-                return float('-inf')
-        
-        return temp_board.evaluate_position(player)
-    
-    def backpropagate(self, result: float):
-        self.visits += 1
-        self.wins += result
-        if self.parent:
-            self.parent.backpropagate(1.0 - result)
 
-class MCTSAgent:
-    def __init__(self, iterations: int = 1000, exploration: float = 1.41, 
-                 decision_tree: Optional[DecisionTree] = None):
-        self.iterations = iterations
-        self.exploration = exploration
-        self.decision_tree = decision_tree
+    def select(self, node: Node) ->  Node:
+        """select a leaf node to be expanded/simulated"""
+        if node.children == []:           # caso base: o nó é uma folha
+            return node                   # retorna ele mesmo
+        else: 
+            node = self.best_child(node)   # se o nó tiver filhos, escolhe o seu melhor filho
+            return self.select(node)       # seleciona o melhor nó folha do filho escolhido
+
     
-    def get_best_move(self, board: Board) -> int:
-        root = MCTSNode(board, decision_tree=self.decision_tree)
+    def best_child(self, node: Node) -> Node:
+        """select the best child to be expanded/simulated based on their ucb's"""
+        best_child = None
+        best_score = float('-inf')
+        for (child, _) in node.children:
+            ucb = child.ucb() 
+            if ucb > best_score:
+                best_child = child
+                best_score = ucb
+        return best_child
+
+
+    def back_propagation(self, node: Node, result: int) -> None:
+        """go through the tree to update the score of each node above the current one"""
+        while node:                              # itera sobre todos os nós "pais" do último nó da simulação
+            node.visits += 1                     # anota que mais uma simulação foi feita sobre esse nó
+            if node.current_player == result:    # se o jogador desse nó tiver ganhado a partida simulada, anota mais uma vitória
+                node.wins+=1           
+            node = node.parent                   # passa ao pai do nó atual, para atualizar também o seu score
+    
+
+    def expand(self, node: Node) -> Node:
+        """expand the node, by adding its children to the tree, and select 4 of them to be simulated"""
+        node.add_children() 
+        return node.select_children()
         
-        for _ in range(self.iterations):
-            node = root
-            while not node.untried_moves and node.children:
-                node = node.select_child()
-            
-            if node.untried_moves:
-                node = node.expand()
-            
-            result = node.simulate()
-            node.backpropagate(result)
         
-        return max(root.children, key=lambda c: c.visits).move
+    # In mcts.py, modify the rollout function:
+    def rollout(self, node: Node) -> int:
+        """simulate a entire play until someone wins"""
+        board = node.board.copy()
+        current_player = node.current_player
+        
+        while True:
+            if game.winning_move(board, 1):
+                return 1
+            if game.winning_move(board, 2):
+                return 2
+            if game.is_game_tied(board):
+                return 0
+                
+            moves = game.available_moves(board)
+            if moves == -1:
+                return 0
+                
+            # Use weighted random selection based on potential wins
+            move_scores = []
+            for move in moves:
+                sim_board = game.simulate_move(board, current_player, move)
+                if game.winning_move(sim_board, current_player):
+                    return current_player
+                score = h.calculate_board_score(sim_board, current_player, 
+                                            1 if current_player == 2 else 2)
+                move_scores.append(score)
+            
+            # Normalize scores and select move
+            total = sum(move_scores)
+            if total <= 0:
+                move = random.choice(moves)
+            else:
+                weights = [s/total for s in move_scores]
+                move = random.choices(moves, weights=weights, k=1)[0]
+                
+            board = game.simulate_move(board, current_player, move)
+            current_player = 1 if current_player == 2 else 2
+        
+
+    def best_move(self) -> int:
+        """select the best column to be played based on their scores"""
+        max_score = float('-inf')
+        scores = {}    # armazena os pares (col, score)
+        columns = []   # armazena as colunas que têm o melhor score de vitórias
+        for (child, col) in self.root.children:   # para cada possível jogada...
+            score = child.score()      
+            print(f"Coluna: {col}")
+            print(child)
+            if score > max_score:        
+                max_score = score        # se esse for o novo melhor score, armazena como mehor
+            scores[col] = score          # adiciona o par (col, score) ao dicionário
+        for col, score in scores.items(): 
+            if score == max_score:
+                columns.append(col)      # seleciona todos os filhos que geram o melhor score
+        return random.choice(columns)    # escolhe aleatoriamente um dos filhos com o melhor score
+
+
+def mcts(board: np.ndarray) -> int:
+    """Should return the best column option, chose by mcts"""
+    root = Node(board=board, last_player=c.AI_PIECE)
+    mcts = MCTS(root)
+    column = mcts.start(3)
+    print(column+1)
+    return column
