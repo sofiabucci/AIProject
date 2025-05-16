@@ -40,31 +40,34 @@ class Interface:
         turn = next(turns)
         
         while not game_over:
-             
             for event in pygame.event.get():
-                if event.type == pygame.QUIT: quit()
+                if event.type == pygame.QUIT: 
+                    self.quit()
 
-                if event.type == pygame.MOUSEMOTION:
-                    pygame.draw.rect(self.screen, c.BACKGROUND_COLOR, (0,0, self.width, self.pixels-14))
-                    posx = event.pos[0]
-                    pygame.draw.circle(self.screen, c.PIECES_COLORS[turn], (posx, int(self.pixels/2)-7), self.rad)
-                pygame.display.update()
+                # Only show piece preview and accept human input in modes 1 and 2
+                if game_mode != 3:
+                    if event.type == pygame.MOUSEMOTION:
+                        pygame.draw.rect(self.screen, c.BACKGROUND_COLOR, (0,0, self.width, self.pixels-14))
+                        posx = event.pos[0]
+                        pygame.draw.circle(self.screen, c.PIECES_COLORS[turn], (posx, int(self.pixels/2)-7), self.rad)
+                        pygame.display.update()
 
-                # jogada do humano:
-                if event.type == pygame.MOUSEBUTTONDOWN:	
-                    if turn == 1 or (turn == 2 and game_mode == 1):  # recebe a jogada do humano
-                        if not game.human_move(bd, self, board, turn, event): continue  # verifica se a coluna é valida
+                    # Human move (only in modes 1 and 2)
+                    if event.type == pygame.MOUSEBUTTONDOWN and (turn == 1 or (turn == 2 and game_mode == 1)):
+                        if not game.human_move(bd, self, board, turn, event): 
+                            continue
                         if game.winning_move(board, turn): 
                             game_over = True
                             break
                         turn = next(turns)
 
-                # jogada da IA:      
-                if turn != 1 and game_mode != 1: 
-                    pygame.time.wait(15)
-                    game_over = game.ai_move(bd, self, game_mode, board, turn)   # recebe jogada da IA e retorna se o jogo acabou,
-                    if game_over: break                                          # seja por vitória ou por empate
-                    turn = next(turns)
+            # AI moves
+            if (game_mode == 2 and turn == 2) or game_mode == 3:
+                pygame.time.wait(500)  # Add slight delay so we can see the moves
+                game_over = game.ai_move(bd, self, game_mode, board, turn)
+                if game_over: 
+                    break
+                turn = next(turns)
 
             if game.is_game_tied(board):
                 self.show_draw(myfont)
@@ -73,9 +76,6 @@ class Interface:
         if game.winning_move(board, turn):
             self.show_winner(myfont, turn)
 
-        # else:
-        #     self.show_draw(myfont)
-            
         pygame.time.wait(5000)
 
 
