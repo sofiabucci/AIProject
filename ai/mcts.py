@@ -55,8 +55,8 @@ class MCTSNode:
                     scored_moves.append((score, move))
                 
                 # Choose move with highest score
-                scored_moves.sort(reverse=True, key=lambda x: x[0])
-                move = scored_moves[0][1]
+                #scored_moves.sort(reverse=True, key=lambda x: x[0])
+                move = max(scored_moves, key=lambda s,m: s + self._evaluate_move(sim_board,m,current_player))
             else:
                 # Fallback to heuristic
                 move = max(legal_moves, key=lambda m: self._evaluate_move(sim_board, m, current_player))

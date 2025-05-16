@@ -37,7 +37,6 @@ def main():
             if isinstance(current_player, HumanPlayer):
                 col = gui.get_human_move(board)
             else:
-                pygame.time.delay(500)  # Delay para visualização
                 col = current_player.get_move(board)
             if board.drop_piece(col):
                 gui.draw_board(board)
@@ -48,7 +47,6 @@ def main():
             if isinstance(current_player, HumanPlayer):
                 col = gui.get_human_move(board)
             else:
-                pygame.time.delay(500)  # Delay para visualização
                 col = current_player.get_move(board)
             if board.drop_piece(col):
                 gui.draw_board(board)
@@ -59,10 +57,8 @@ def main():
             if isinstance(current_player, HumanPlayer):
                 col = gui.get_human_move(board)
             else:
-                pygame.time.delay(500)  # Delay para visualização
                 col = current_player.get_move(board)
             if board.drop_piece(col):
-                pygame.time.delay(500)
                 gui.draw_board(board)
 
      
