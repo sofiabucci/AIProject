@@ -3,8 +3,16 @@ from game import constants as c
 from game import rules as game
 from math import sqrt, log
 from ai import heuristic as h
+import time, math, numpy as np, random, itertools
+from game import constants as c
+from game import rules as game
+from math import sqrt, log
+from ai import heuristic as h
 
 
+class Node:
+    def __init__(self, board, last_player, parent=None) -> None:
+        self.board = board
 class Node:
     def __init__(self, board, last_player, parent=None) -> None:
         self.board = board
@@ -25,10 +33,10 @@ class Node:
         """add each possible move to a list of possible children for the current node/state"""  
         if (len(self.children) != 0) or (game.available_moves(self.board) == -1): return   # se não existirem jogadas possíveis ou se os filhos já tiverem sido adicionados
         for col in game.available_moves(self.board):  # itera sobre todas as colunas possíveis a serem jogadas
-            if self.current_player == c.HUMAN_PIECE:  
-                copy_board = game.simulate_move(self.board, c.AI_PIECE, col)
+            if self.current_player != c.PLAYER2_PIECE:  
+                copy_board = game.simulate_move(self.board, c.PLAYER2_PIECE, col)
             else: 
-                copy_board = game.simulate_move(self.board, c.HUMAN_PIECE, col)    # cria uma cópia do tabuleiro atual e adiciona a nova jogada a ele
+                copy_board = game.simulate_move(self.board, c.PLAYER1_PIECE, col)    # cria uma cópia do tabuleiro atual e adiciona a nova jogada a ele
             self.children.append((Node(board=copy_board, last_player=self.current_player, parent=self), col))  # adiciona cada tabuleiro gerado a uma lista, junto com a identificação da coluna que o gerou
 
     def select_children(self):
@@ -60,7 +68,7 @@ class MCTS:
         """simulate 6 times through each children of the root, before running mcts"""
         self.root.add_children()              
         for child in self.root.children:                                  # itera sobre todos os filhos da root
-            if game.winning_move(child[0].board, c.AI_PIECE): return child[1]   # se alguma jogada já for vitoriosa, retorna
+            if game.winning_move(child[0].board, c.PLAYER2_PIECE): return child[1]   # se alguma jogada já for vitoriosa, retorna
             for _ in range(6):                                            # simula 6 vezes sobre cada filho
                 result = self.rollout(child[0])
                 self.back_propagation(child[0], result)
@@ -179,7 +187,7 @@ class MCTS:
 
 def mcts(board: np.ndarray) -> int:
     """Should return the best column option, chose by mcts"""
-    root = Node(board=board, last_player=c.AI_PIECE)
+    root = Node(board=board, last_player=c.PLAYER2_PIECE)
     mcts = MCTS(root)
     column = mcts.start(3)
     print(column+1)
