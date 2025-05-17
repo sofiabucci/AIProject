@@ -1,292 +1,206 @@
+# Importações necessárias
 from typing import Union
 import numpy as np
 import pandas as pd
 import random
 from pandas import DataFrame, Series, read_csv
-from game import rules as game
-from game import constants as c
-from joblib import load, dump
+from game import rules as game        # Importa regras do jogo Connect4
+from game import constants as c       
+from joblib import load, dump         # Para salvar e carregar modelos com persistência
 
-been_called = False
 
+# Classe que representa um nó da árvore de decisão
 class DTNode:
-    def __init__(self, feature_index=None, feature_name=None, children=None, info_gain=None, split_values = None, leaf_value=None) -> None:
-        self.feature_index = feature_index   
-        self.feature_name = feature_name      
-        self.children = children
-        self.info_gain = info_gain 
-        self.split_values = split_values 
-        self.leaf_value = leaf_value 
+    def __init__(self, feature_index=None, feature_name=None, children=None, info_gain=None, split_values=None, leaf_value=None) -> None:
+        self.feature_index = feature_index      # Índice do atributo usado para o split
+        self.feature_name = feature_name        # Nome do atributo
+        self.children = children                # Dicionário de nós filhos
+        self.info_gain = info_gain              # Ganho de informação do split
+        self.split_values = split_values        # Valores do atributo para cada ramo
+        self.leaf_value = leaf_value            # Valor da classe se o nó for uma folha
 
-
+# Classe que constrói e faz previsões com árvore de decisão
 class DecisionTreeClassifier:
     def __init__(self, max_depth: int = None, min_samples_split: int = None, criterium: str = 'entropy') -> None:
-        self.root: DTNode = None
-        self.max_depth: int = max_depth 
-        self.min_samples_split: int = min_samples_split 
-        self.criterium: str = criterium
+        self.root = None                        # Nó raiz da árvore
+        self.max_depth = max_depth              # Profundidade máxima permitida
+        self.min_samples_split = min_samples_split  # Número mínimo de amostras para dividir
+        self.criterium = criterium              # Critério de impureza (gini ou entropia)
 
-    
-
+    # Treinamento da árvore
     def fit(self, X_train: DataFrame, y_train: Series) -> None:
-        '''Fit the tree with a DataFrame for trainning'''
-        dataset = pd.concat((X_train, y_train), axis=1)
-        self.root = self._build_tree(dataset)
+        dataset = pd.concat((X_train, y_train), axis=1)  # Une dados e rótulos
+        self.root = self._build_tree(dataset)            # Constrói a árvore recursivamente
 
-
-
+    # Constrói a árvore de forma recursiva
     def _build_tree(self, dataset: DataFrame, curr_depth: int = 0) -> DTNode:
-        '''Construct the Decision Tree from the root node''' 
-        print(curr_depth)
-        X_train, y_train = dataset.iloc[:,:-1], dataset.iloc[:,-1]
-        num_samples = X_train.shape[0]
-        
-        if num_samples<self.min_samples_split or curr_depth==self.max_depth or self._is_pure(y_train): 
-            return DTNode(leaf_value=self._calculate_leaf_value(y_train))
-        
-        best_split = self._get_best_split(dataset) 
-        if best_split == {}: 
-            return DTNode(leaf_value=self._calculate_leaf_value(y_train)) 
-
-        children = []
-        for child in best_split["children"]:
-            children.append(self._build_tree(child, curr_depth+1))
-        return DTNode(best_split["feature_index"], best_split["feature_name"], children, best_split["info_gain"], best_split["split_values"])
-
-
-    
-    def _calculate_leaf_value(self, y_train: Series) -> any: 
-        '''Get value of the majority of results in a leaf node'''
-        list_y = list(y_train)
-        max_count = max(list_y.count(item) for item in set(list_y)) 
-        most_common_values = [item for item in set(list_y) if list_y.count(item) == max_count] 
-        return random.choice(most_common_values)
-    
-
-
-    def _is_pure(self, target_column: Series) -> bool:
-        '''Check if a node have only one type of target value'''
-        return len(set(target_column)) == 1
-    
-
-
-    def _get_best_split(self, dataset: DataFrame) -> dict:
-        '''Get the best split for a node'''
-        best_split = {}
-        max_info_gain = 0
+        X_train = dataset.iloc[:, :-1]
         y_train = dataset.iloc[:, -1]
-        train_columns = dataset.shape[1] - 1 
+        num_samples, num_features = X_train.shape
 
-        for feature_index in range(train_columns):
-            # if max_info_gain > 0.3: break
-            feature_name = dataset.columns[feature_index]       
-            values = dataset.iloc[:, feature_index]    
+        # Condições de parada da recursão (puro, profundidade, amostras mínimas)
+        if num_samples >= self.min_samples_split and curr_depth <= self.max_depth and not self._is_pure(y_train):
+            best_split = self._get_best_split(dataset)
+            if best_split["info_gain"] > 0:
+                children = {
+                    feature_value: self._build_tree(subset, curr_depth + 1)
+                    for feature_value, subset in best_split["splits"].items()
+                }
+                return DTNode(best_split["feature_index"], best_split["feature_name"], children, best_split["info_gain"], best_split["splits"].keys())
 
-            children, info_gain = self._discrete_split(dataset, feature_index, pd.unique(values), y_train)
-            max_info_gain = self._update_best_split(best_split, info_gain, max_info_gain, children, pd.unique(values), feature_name, feature_index)
+        # Caso base: retorna um nó folha com o valor mais comum
+        leaf_value = self._calculate_leaf_value(y_train)
+        return DTNode(leaf_value=leaf_value)
+
+    # Retorna o valor mais comum (modo) para usar como folha
+    def _calculate_leaf_value(self, y_train: Series) -> any:
+        y_train = list(y_train)
+        return max(y_train, key=y_train.count)
+
+    # Verifica se todos os valores da coluna são iguais
+    def _is_pure(self, target_column: Series) -> bool:
+        return len(set(target_column)) == 1
+
+    # Encontra o melhor atributo e divisão dos dados
+    def _get_best_split(self, dataset: DataFrame) -> dict:
+        best_split = {}
+        max_info_gain = -float("inf")
+        num_features = dataset.shape[1] - 1
+
+        for feature_index in range(num_features):
+            feature_name = dataset.columns[feature_index]
+            feature_values = dataset.iloc[:, feature_index]
+            splits = self._discrete_split(dataset, feature_index)
+
+            # Calcula o ganho de informação da divisão
+            info_gain = self._discrete_info_gain(dataset.iloc[:, -1], splits)
+
+            # Atualiza se for o melhor ganho encontrado
+            if info_gain > max_info_gain:
+                best_split = self._update_best_split(feature_index, feature_name, info_gain, splits)
+                max_info_gain = info_gain
+
         return best_split
-    
 
+    # Atualiza o dicionário com as melhores informações de split
+    def _update_best_split(self, feature_index, feature_name, info_gain, splits) -> dict:
+        return {
+            "feature_index": feature_index,
+            "feature_name": feature_name,
+            "info_gain": info_gain,
+            "splits": splits,
+        }
 
-    def _update_best_split(self, best_split: dict, info_gain: float, max_info_gain: float, children: list, value: any, feature_name: str, feature_index: int) -> float:
-        if info_gain > max_info_gain:
-            best_split["feature_index"] = feature_index
-            best_split["feature_name"] = feature_name
-            best_split["split_values"] = value
-            best_split["children"] = children
-            best_split["info_gain"] = info_gain
-            return info_gain
-        return max_info_gain
-    
+    # Realiza split discreto dos dados por valor da feature
+    def _discrete_split(self, dataset: DataFrame, feature_index: int) -> dict:
+        splits = {}
+        for feature_value in dataset.iloc[:, feature_index].unique():
+            splits[feature_value] = dataset[dataset.iloc[:, feature_index] == feature_value]
+        return splits
 
+    # Calcula o ganho de informação com base nos splits
+    def _discrete_info_gain(self, y_train: Series, splits: dict) -> float:
+        weight_average = sum((len(subset) / len(y_train)) * self._get_impurity(subset.iloc[:, -1]) for subset in splits.values())
+        return self._get_impurity(y_train) - weight_average
 
-    def _discrete_split(self, dataset: DataFrame, feature_index: int, values: Series, y_parent: Series) -> tuple[list, float]:
-        '''Split the DataFrame with a discrete and multiclass value'''
-        labels = pd.unique(values)
-        children = []
-        for label in labels:
-            child_dataset = dataset[dataset.iloc[:, feature_index] == label]
-            children.append(child_dataset)
-        info_gain = self._discrete_info_gain(dataset, children, y_parent)
-        return children, info_gain
-
-
-
-    def _discrete_info_gain(self, parent_dataset: DataFrame, children: list, y_parent) -> float:
-        '''Get the information gain for a node splitted by a multiclass discrete value'''
-        children_impurity_sum = 0
-        for child_dataset in children:
-            children_impurity_sum += child_dataset.shape[0] / parent_dataset.shape[0] * self._get_impurity(child_dataset.iloc[:, -1])
-        return self._get_impurity(y_parent) - children_impurity_sum
-
-
-
+    # Retorna a impureza segundo o critério escolhido
     def _get_impurity(self, y_train: Series) -> float:
-        '''Get the impority of the node'''
-        return self._gini_index(y_train) if self.criterium=='gini' else self._entropy(y_train)
+        return self._entropy(y_train) if self.criterium == "entropy" else self._gini_index(y_train)
 
-
-
+    # Cálculo da entropia
     def _entropy(self, y_train: Series) -> float:
-        '''Get the entropy value for a node'''
-        class_labels = pd.unique(y_train)
-        entropy = 0
-        for label in class_labels:
-            label_positives = len(y_train[y_train == label]) / len(y_train)
-            entropy += -(label_positives * np.log2(label_positives))
-        return entropy
-    
+        class_labels = list(set(y_train))
+        probabilities = [y_train.tolist().count(label) / len(y_train) for label in class_labels]
+        return -sum(p * np.log2(p) for p in probabilities if p > 0)
 
-
+    # Cálculo do índice de Gini
     def _gini_index(self, y_train: Series) -> float:
-        '''Get the gini value for a node'''
-        class_labels = pd.unique(y_train)
-        gini = 0
-        for label in class_labels:
-            label_positives = len(y_train[y_train == label]) / len(y_train)
-            gini += label_positives**2
-        return 1 - gini
+        class_labels = list(set(y_train))
+        probabilities = [y_train.tolist().count(label) / len(y_train) for label in class_labels]
+        return 1 - sum(p ** 2 for p in probabilities)
 
-
-
+    # Previsões para um DataFrame de dados
     def predict(self, X_test: DataFrame) -> list:
-        '''Predict target column for a dataframe'''
         return [self.make_prediction(row, self.root) for _, row in X_test.iterrows()]
 
-
-
+    # Faz a previsão para uma única amostra
     def make_prediction(self, row: tuple, node: DTNode) -> Union[any, None]:
-        '''Predict target for each row in dataframe'''
-        if node.leaf_value is not None: 
-            return node.leaf_value
-        
-        index = node.feature_index
-        attribute = node.feature_name
-        value = row[index]
+        while node and node.leaf_value is None:
+            value = row[node.feature_index]
+            if value in node.children:
+                node = node.children[value]
+            else:
+                return None  # Valor não esperado na árvore
+        return node.leaf_value
 
-        for i, node_value in enumerate(node.split_values):
-            if value == node_value:
-                return self.make_prediction(row, node.children[i])  
-
-        return None
-    
+# Classe que encapsula o uso da árvore para diferentes domínios
 class DecisionTree:
     def __init__(self, mode='iris'):
-        """
-        Initialize Decision Tree for either iris classification or connect4 game
-        
-        Parameters:
-        - mode: 'iris' for iris dataset classification or 'connect4' for game moves
-        """
-        self.mode = mode
-        self.model = None
+        self.mode = mode  # Modo: 'iris' ou 'connect4'
+        self.clf = None   # Classificador
         self.initialize_model()
-    
+
+    # Inicializa o modelo conforme o modo
     def initialize_model(self):
-        """Load or train the appropriate model based on mode"""
         if self.mode == 'iris':
             self._initialize_iris_model()
         elif self.mode == 'connect4':
             self._initialize_connect4_model()
-        else:
-            raise ValueError("Mode must be either 'iris' or 'connect4'")
 
+    # Inicializa modelo para o dataset Iris
     def _initialize_iris_model(self):
-        """Handle iris dataset model initialization"""
         try:
-            self.model = load('datasets/iris_dt.joblib')
-        except:
-            # Load and preprocess iris dataset
-            df = read_csv('datasets/iris.csv')
-            target = df['class']
-            features = df.drop(['class', 'ID'], axis=1)
-            
-            # Train decision tree with more reasonable parameters
-            self.model = DecisionTreeClassifier(max_depth=5, min_samples_split=5)
-            self.model.fit(features, target)
-            
-            # Save trained model
-            dump(self.model, 'datasets/iris_dt.joblib')
+            self.clf = load("model/iris_model.joblib")
+        except FileNotFoundError:
+            df = read_csv("model/iris.csv")
+            X = df.iloc[:, :-1]
+            y = df.iloc[:, -1]
+            self.clf = DecisionTreeClassifier(3, 2, "entropy")
+            self.clf.fit(X, y)
+            dump(self.clf, "model/iris_model.joblib")
 
+    # Inicializa modelo para o jogo Connect4
     def _initialize_connect4_model(self):
-        """Handle connect4 game model initialization"""
         try:
-            self.model = load('datasets/connect4_dataset.joblib')
-        except:
-            # Load and preprocess connect4 dataset
-            df = read_csv('datasets/connect4_dataset.csv')
-            target = df['move']
-            features = df.drop(['move'], axis=1)
-            
-            # Train decision tree with game-appropriate parameters
-            self.model = DecisionTreeClassifier(max_depth=10, min_samples_split=20)
-            self.model.fit(features, target)
-            
-            # Save trained model
-            dump(self.model, 'datasets/connect4_dataset.joblib')
+            self.clf = load("model/connect4_model.joblib")
+        except FileNotFoundError:
+            df = read_csv("model/connect4.csv")
+            X = df.iloc[:, :-1]
+            y = df.iloc[:, -1]
+            self.clf = DecisionTreeClassifier(5, 2, "entropy")
+            self.clf.fit(X, y)
+            dump(self.clf, "model/connect4_model.joblib")
 
+    # Faz a previsão para os dados da íris
     def predict_iris(self, sepal_length, sepal_width, petal_length, petal_width):
-        """
-        Predict iris flower type based on features
-        
-        Parameters:
-        - sepal_length, sepal_width, petal_length, petal_width: flower measurements
-        
-        Returns:
-        - Predicted iris class (e.g., 'Iris-setosa')
-        """
-        if self.mode != 'iris':
-            raise RuntimeError("This model was initialized for connect4, not iris classification")
-            
-        input_data = pd.DataFrame({
-            'sepallength': [sepal_length],
-            'sepalwidth': [sepal_width],
-            'petallength': [petal_length],
-            'petalwidth': [petal_width]
-        })
-        return self.model.predict(input_data)[0]
+        X_test = pd.DataFrame([[sepal_length, sepal_width, petal_length, petal_width]])
+        return self.clf.predict(X_test)[0]
 
+    # Decide a melhor jogada para o jogo Connect4
     def play(self, board):
-        """
-        Determine best move for connect4 game
-        
-        Parameters:
-        - board: 2D array representing current game state
-        
-        Returns:
-        - Column index for best move
-        """
-        if self.mode != 'connect4':
-            raise RuntimeError("This model was initialized for iris classification, not connect4")
-            
-        available_moves = game.available_moves(board)
-        best_moves = []
-        average_moves = []
-        worst_moves = []
+        possible_plays = game.get_possible_plays(board)
+        possible_states = []
+        for play in possible_plays:
+            new_board = game.make_play(play, c.PLAYER1, board)
+            possible_states.append((play, new_board))
 
-        for col in available_moves:
-            temp_board = game.simulate_move(board, c.AI_PIECE, col)
-            row = self._map_board_to_row(temp_board)
-            prediction = self.model.predict(row)
-            
-            # Assuming predictions are 'win', 'draw', 'loss' from the dataset
-            if prediction[0] == 'win':
-                worst_moves.append(col)
-            elif prediction[0] == 'draw':
-                average_moves.append(col)
-            elif prediction[0] == 'loss':
-                best_moves.append(col)
+        board_dicts = [game.to_dict(board) for _, board in possible_states]
+        df = pd.DataFrame(board_dicts)
+        predictions = self.clf.predict(df)
 
-        # Decision logic - prefer moves that lead to opponent's loss (our win)
-        if best_moves:
-            return random.choice(best_moves)
-        elif average_moves:
-            return random.choice(average_moves)
-        return random.choice(worst_moves) if worst_moves else random.choice(available_moves)
+        # Cria um dicionário de colunas por previsão
+        prediction_dict = {}
+        for i, prediction in enumerate(predictions):
+            if prediction not in prediction_dict:
+                prediction_dict[prediction] = []
+            prediction_dict[prediction].append(possible_states[i][0])
 
-    def _map_board_to_row(self, board):
-        """Convert connect4 board state to dataframe row format"""
-        flattened = [item for sublist in board for item in sublist]
-        result = pd.DataFrame([flattened])
-        result.replace({0: 'b', 1: 'x', 2: 'o'}, inplace=True)  # b=blank, x=player, o=AI
-        return result
+        # Prioriza vitória, depois empate, depois evitar derrota
+        if c.WIN in prediction_dict:
+            return random.choice(prediction_dict[c.WIN])
+        elif c.DRAW in prediction_dict:
+            return random.choice(prediction_dict[c.DRAW])
+        elif c.LOSS in prediction_dict:
+            return random.choice(prediction_dict[c.LOSS])
+        else:
+            return random.choice(possible_plays)
