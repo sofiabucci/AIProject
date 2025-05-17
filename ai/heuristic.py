@@ -1,4 +1,3 @@
-
 from game import constants as c
 import numpy as np
 

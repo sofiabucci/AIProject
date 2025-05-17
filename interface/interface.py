@@ -82,35 +82,54 @@ class Interface:
     def draw_options_board(self):
         """Draw the option board: player x player and single player"""
         self.screen.fill(c.BACKGROUND_COLOR)
-        font = pygame.font.Font("./fonts/04B_30__.TTF", 60)
-        text_surface = font.render("Connect 4", True, c.BUTTON_TEXT_COLOR)
+        font = pygame.font.Font("interface/fonts/FreckleFace-Regular.ttf", 150)        
+        text_surface = font.render("Connect 4", True, c.TEXT_COLOR)
         text_rect = text_surface.get_rect()
         text_rect.center = (560, 230)
         self.screen.blit(text_surface, text_rect)
-        self.draw_button(self.height/2, 350, 300, 50, "Player x Player")
-        self.draw_button(self.height/2, 450, 300, 50, "Player x MCTS") 
-        self.draw_button(self.height/2, 550, 300, 50, "MCTS x A*") 
+        self.draw_button(self.height/2 - 150, 350, 400, 70, "Player x Player")
+        self.draw_button(self.height/2, 450, 400, 70, "Player x MCTS") 
+        self.draw_button(self.height/2 - 90, 550, 400, 70, "A* x MCTS") 
 
 
     def choose_option(self) -> int:
         while True:
             game_mode = 0
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            
+            # Redraw buttons with hover effects
+            self.screen.fill(c.BACKGROUND_COLOR)
+            font = pygame.font.Font("interface/fonts/FreckleFace-Regular.ttf", 150)        
+            text_surface = font.render("Connect 4", True, c.TEXT_COLOR)
+            text_rect = text_surface.get_rect(center=(560, 230))
+            self.screen.blit(text_surface, text_rect)
+            
+            # Check hover for each button
+            hover_player = (self.height/2 - 150 <= mouse_x <= self.height/2 - 150 + 400) and (350 <= mouse_y <= 350 + 70)
+            hover_ai = (self.height/2 <= mouse_x <= self.height/2 + 400) and (450 <= mouse_y <= 450 + 70)
+            hover_ai_vs_ai = (self.height/2 - 90 <= mouse_x <= self.height/2 - 90 + 400) and (550 <= mouse_y <= 550 + 70)
+            
+            # Draw buttons with hover state
+            self.draw_button(self.height/2 - 150, 350, 400, 70, "Player x Player", hover_player)
+            self.draw_button(self.height/2, 450, 400, 70, "Player x MCTS", hover_ai)
+            self.draw_button(self.height/2 - 90, 550, 400, 70, "A* x MCTS", hover_ai_vs_ai)
+            
             for event in pygame.event.get():
-                if event.type == pygame.QUIT: quit()
+                if event.type == pygame.QUIT: 
+                    self.quit()
                 elif event.type == pygame.MOUSEBUTTONDOWN:
-                    mouse_x, mouse_y = pygame.mouse.get_pos()
-                    if (self.width/2 - 150) <= mouse_x <= (self.width/2 + 150) and 350 <= mouse_y <= 400:
+                    if hover_player:
                         print("Player vs Player selected")
                         game_mode = 1
-                    elif (self.width/2 - 150) <= mouse_x <= (self.width/2 + 150) and 450 <= mouse_y <= 500:
+                    elif hover_ai:
                         print("Player vs AI selected")
                         game_mode = 2
-                    elif (self.width/2 - 150) <= mouse_x <= (self.width/2 + 150) and 550 <= mouse_y <= 600:
+                    elif hover_ai_vs_ai:
                         print("AI vs AI selected")
                         game_mode = 3
-
+            
             pygame.display.flip()
-
+            
             if game_mode in [1, 2, 3]:
                 return game_mode
 
@@ -139,13 +158,18 @@ class Interface:
         pygame.draw.circle(self.screen, c.PIECES_COLORS[piece], center_of_circle, self.rad)
 
 
-    def draw_button(self, x: int, y: int, width: int, height: int, text: str) -> None:
-        """Draw the option buttons"""
-        pygame.draw.rect(self.screen, c.SHADOW_COLOR, (x, y, width, height), 0, 30)
-        font = pygame.font.Font("./fonts/Minecraft.ttf", 25)
-        text_surface = font.render(text, True, c.BUTTON_TEXT_COLOR)
-        text_rect = text_surface.get_rect()
-        text_rect.center = (x + width / 2, y + height / 2)
+    def draw_button(self, x: int, y: int, width: int, height: int, text: str, hovered: bool = False) -> None:
+        """Draw the option buttons with hover effect"""
+        # Change color if hovered
+        color = c.BUTTON_HOVER_COLOR if hovered else c.BUTTON_COLOR
+        
+        # Draw button (rounded corners with border_radius=30)
+        pygame.draw.rect(self.screen, color, (x, y, width, height), 0, 30)
+        
+        # Draw text
+        font = pygame.font.Font("interface/fonts/FreckleFace-Regular.ttf", 36)
+        text_surface = font.render(text, True, c.TEXT_COLOR)
+        text_rect = text_surface.get_rect(center=(x + width / 2, y + height / 2))
         self.screen.blit(text_surface, text_rect)
 
 

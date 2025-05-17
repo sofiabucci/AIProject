@@ -3,7 +3,7 @@ import numpy as np
 import math
 import pygame
 from game.board import Board
-from ai import a_star as g, mcts as m, decisision_tree_connect4 as tree
+from ai import a_star as g, mcts as m, decisision_tree as tree
 
 
 def human_move(bd: Board, interface: any, board: np.ndarray, turn: int, event: any) -> bool:
