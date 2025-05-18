@@ -132,6 +132,25 @@ class DecisionTreeClassifier:
             else:
                 return None  # Valor não esperado na árvore
         return node.leaf_value
+    
+    def predict_connect4_move(self, board: np.ndarray) -> int:
+        possible_moves = game.available_moves(board)
+        if not possible_moves:
+            return -1  # Jogo empatado
+
+        # Converte o tabuleiro para um formato compatível com o modelo
+        flattened = board.flatten()
+        df = pd.DataFrame([flattened])
+        prediction = self.clf.predict(df)[0]
+
+        # Lógica simplificada: escolhe a primeira jogada válida com melhor resultado
+        for move in possible_moves:
+            sim_board = game.simulate_move(board, c.PLAYER2_PIECE, move)
+            sim_flattened = sim_board.flatten()
+            sim_df = pd.DataFrame([sim_flattened])
+            if self.clf.predict(sim_df)[0] == prediction:
+                return move
+        return possible_moves[0]
 
 # Classe que encapsula o uso da árvore para diferentes domínios
 class DecisionTree:
@@ -150,26 +169,26 @@ class DecisionTree:
     # Inicializa modelo para o dataset Iris
     def _initialize_iris_model(self):
         try:
-            self.clf = load("model/iris_model.joblib")
+            self.clf = load("datasets/iris_model.joblib")
         except FileNotFoundError:
-            df = read_csv("model/iris.csv")
+            df = read_csv("datasets/iris.csv")
             X = df.iloc[:, :-1]
             y = df.iloc[:, -1]
             self.clf = DecisionTreeClassifier(3, 2, "entropy")
             self.clf.fit(X, y)
-            dump(self.clf, "model/iris_model.joblib")
+            dump(self.clf, "datasets/iris_model.joblib")
 
     # Inicializa modelo para o jogo Connect4
     def _initialize_connect4_model(self):
         try:
-            self.clf = load("model/connect4_model.joblib")
+            self.clf = load("datasets/connect4_model.joblib")
         except FileNotFoundError:
-            df = read_csv("model/connect4.csv")
+            df = read_csv("datasets/connect4_dataset.csv")
             X = df.iloc[:, :-1]
             y = df.iloc[:, -1]
             self.clf = DecisionTreeClassifier(5, 2, "entropy")
             self.clf.fit(X, y)
-            dump(self.clf, "model/connect4_model.joblib")
+            dump(self.clf, "datasets/connect4_model.joblib")
 
     # Faz a previsão para os dados da íris
     def predict_iris(self, sepal_length, sepal_width, petal_length, petal_width):

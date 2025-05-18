@@ -89,7 +89,7 @@ class Interface:
         self.screen.blit(text_surface, text_rect)
         self.draw_button(self.height / 2 - 150, 350, 400, 70, "Player x Player")
         self.draw_button(self.height / 2, 450, 400, 70, "Player x MCTS") 
-        self.draw_button(self.height / 2 - 90, 550, 400, 70, "A* x MCTS") 
+        self.draw_button(self.height / 2 - 90, 550, 400, 70, "Decision Tree x MCTS") 
 
 
     def choose_option(self) -> int:
@@ -112,7 +112,7 @@ class Interface:
             # Redesenha botões com efeito de hover
             self.draw_button(self.height / 2 - 150, 350, 400, 70, "Player x Player", hover_player)
             self.draw_button(self.height / 2, 450, 400, 70, "Player x MCTS", hover_ai)
-            self.draw_button(self.height / 2 - 90, 550, 400, 70, "A* x MCTS", hover_ai_vs_ai)
+            self.draw_button(self.height / 2 - 90, 550, 400, 70, "Decision Tree x MCTS", hover_ai_vs_ai)
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT: 

@@ -4,7 +4,7 @@ import numpy as np  # Biblioteca para manipulação de arrays (tabuleiro)
 import math  # Biblioteca para funções matemáticas
 import pygame  # Biblioteca para interface gráfica
 from game.board import Board  # Classe que representa o tabuleiro
-from ai import a_star as g, decision_tree as tree, mcts as m  # Importação dos algoritmos de IA
+from ai import decision_tree as tree, mcts as m  # Importação dos algoritmos de IA
 
 # Função responsável pela jogada do jogador humano
 def human_move(bd: Board, interface: any, board: np.ndarray, turn: int, event: any) -> bool:
@@ -50,7 +50,7 @@ def get_ai_column(board: np.ndarray, game_mode: int) -> int:
         if x_count == o_count:  # Vez do X (MCTS)
             return m.mcts(board)
         else:  # Vez do O (A*)
-            return g.a_star(board, c.PLAYER1_PIECE, c.PLAYER2_PIECE)
+            return tree.DecisionTree(mode='connect4').play(board)
 
 # Simula um movimento sem alterar o tabuleiro real
 def simulate_move(board: np.ndarray, piece: int, col: int) -> np.ndarray:
