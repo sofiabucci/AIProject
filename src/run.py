@@ -157,7 +157,7 @@ class IA_Analysis:
         self.ai_functions = {
             'RANDOM': lambda board: random.choice(game.available_moves(board)),
             'MCTS': mcts.mcts,
-            'DECISION_TREE': decision_tree.DecisionTree().play
+            'DECISION_TREE': decision_tree.DecisionTree('connect4').play
         }
     
     def create_dirs(self):
@@ -171,11 +171,8 @@ class IA_Analysis:
         
         ia_combinations = [
             ('MCTS', 'RANDOM'),
-            ('A_STAR', 'RANDOM'),
             ('DECISION_TREE', 'RANDOM'),
-            ('MCTS', 'A_STAR'),
             ('MCTS', 'DECISION_TREE'),
-            ('A_STAR', 'DECISION_TREE')
         ]
         
         for ia1, ia2 in ia_combinations:
@@ -235,7 +232,7 @@ class IA_Analysis:
     def generate_reports(self):
         """Gera relatórios e gráficos"""
         print("Gerando relatórios...")
-        ia_list = ["MCTS", "A_STAR", "DECISION_TREE", "RANDOM"]
+        ia_list = ["MCTS", "DECISION_TREE", "RANDOM"]
         
         self.plot_win_rates(ia_list)
         self.plot_response_times(ia_list)

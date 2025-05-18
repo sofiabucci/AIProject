@@ -35,7 +35,7 @@ def generate_dataset(num_games=100, num_samples_per_game=1000):
 
                 # Define o resultado da jogada se o jogo terminar aqui
                 if game.winning_move(board, current_player):
-                    outcome = 'win' if current_player == c.AI_PIECE else 'loss'
+                    outcome = 'win' if current_player == c.PLAYER2_PIECE else 'loss'
                 elif game.is_game_tied(board):
                     outcome = 'draw'
                 else:
@@ -63,7 +63,7 @@ def generate_dataset(num_games=100, num_samples_per_game=1000):
     df = pd.DataFrame(dataset, columns=columns)
 
     # Salva como CSV
-    df.to_csv('datasets/connect4_dt.csv', index=False)
+    df.to_csv('src/ai/datasets/connect4_dt.csv', index=False)
 
     return df
 

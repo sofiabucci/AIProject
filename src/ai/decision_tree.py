@@ -1,6 +1,7 @@
 # Importações necessárias
 from typing import Union
 import numpy as np
+import os
 import pandas as pd
 import random
 from pandas import DataFrame, Series, read_csv
@@ -8,8 +9,6 @@ from game import rules as game        # Importa regras do jogo Connect4
 from game import constants as c       
 from joblib import load, dump         # Para salvar e carregar modelos com persistência
 
-CONNECT4_DT = '/home/sofiabucci/AIProject/src/ai/datasets/connect4_dataset.csv'
-IRIS_DT = '/home/sofiabucci/AIProject/src/ai/datasets/iris.csv'
 # Classe que representa um nó da árvore de decisão
 class DTNode:
     def __init__(self, feature_index=None, feature_name=None, children=None, info_gain=None, split_values=None, leaf_value=None) -> None:
@@ -170,9 +169,9 @@ class DecisionTree:
     # Inicializa modelo para o dataset Iris
     def _initialize_iris_model(self):
         try:
-            self.clf = load("models/iris_model.joblib")
+            self.clf = load("src/ai/datasets/iris.csv")
         except FileNotFoundError:
-            df = read_csv(IRIS_DT)
+            df = read_csv('src/ai/datasets/iris.csv')
             X = df.iloc[:, :-1]
             y = df.iloc[:, -1]
             self.clf = DecisionTreeClassifier(3, 2, "entropy")
@@ -182,9 +181,9 @@ class DecisionTree:
     # Inicializa modelo para o jogo Connect4
     def _initialize_connect4_model(self):
         try:
-            self.clf = load("models/connect4_model.joblib")
+            self.clf = load("src/ai/datasets/connect4_dataset.csv")
         except FileNotFoundError:
-            df = read_csv(CONNECT4_DT)
+            df = read_csv('src/ai/datasets/connect4_dataset.csv')
             X = df.iloc[:, :-1]
             y = df.iloc[:, -1]
             self.clf = DecisionTreeClassifier(5, 2, "entropy")
