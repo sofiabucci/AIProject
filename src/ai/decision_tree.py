@@ -181,14 +181,14 @@ class DecisionTree:
     # Inicializa modelo para o jogo Connect4
     def _initialize_connect4_model(self):
         try:
-            self.clf = load("src/ai/models/connect4.joblib")
+            self.clf = load("src/ai/models/connect4_dt.joblib")
         except FileNotFoundError:
-            df = read_csv('src/ai/datasets/connect4_dataset.csv')
+            df = read_csv('src/ai/datasets/connect4_dt.csv')
             X = df.iloc[:, :-1]
             y = df.iloc[:, -1]
             self.clf = DecisionTreeClassifier(5, 2, "entropy")
             self.clf.fit(X, y)
-            dump(self.clf, "src/ai/models/connect4.joblib")
+            dump(self.clf, "src/ai/models/connect4_dt.joblib")
 
     # Faz a previsão para os dados da íris
     def predict_iris(self, sepal_length, sepal_width, petal_length, petal_width):
