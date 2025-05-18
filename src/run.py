@@ -9,10 +9,10 @@ import random
 from game import rules as game
 from game import constants as c
 from game import board as Board
-from statistics.storage import save_metrics, load_metrics
-from statistics.metrics.critical_decisions import evaluate_decision_quality, get_decision_quality_stats
-from statistics.metrics.response_time import measure_response_time, record_response_time
-from statistics.metrics.win_rates import record_game_result, calculate_win_rates
+from storage import save_metrics, load_metrics
+from critical_decisions import evaluate_decision_quality, get_decision_quality_stats
+from response_time import measure_response_time, record_response_time
+from win_rates import record_game_result, calculate_win_rates
 
 class IA_Analysis:
     def __init__(self):
