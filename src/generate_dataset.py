@@ -61,5 +61,5 @@ def generate_dataset(num_games=100, num_samples_per_game=1000):
 
 if __name__ == '__main__':
     print("Generating Connect Four dataset...")
-    dataset = generate_dataset(num_games=100, num_samples_per_game=1000)
+    dataset = generate_dataset(num_games=100, num_samples_per_game=500)
     print(f"Dataset generated with {len(dataset)} samples.")
