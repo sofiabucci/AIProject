@@ -169,26 +169,26 @@ class DecisionTree:
     # Inicializa modelo para o dataset Iris
     def _initialize_iris_model(self):
         try:
-            self.clf = load("src/ai/datasets/iris.csv")
+            self.clf = load("src/ai/models/iris.joblib")
         except FileNotFoundError:
             df = read_csv('src/ai/datasets/iris.csv')
             X = df.iloc[:, :-1]
             y = df.iloc[:, -1]
             self.clf = DecisionTreeClassifier(3, 2, "entropy")
             self.clf.fit(X, y)
-            dump(self.clf, "models/iris_model.joblib")
+            dump(self.clf, "src/ai/models/iris.joblib")
 
     # Inicializa modelo para o jogo Connect4
     def _initialize_connect4_model(self):
         try:
-            self.clf = load("src/ai/datasets/connect4_dataset.csv")
+            self.clf = load("src/ai/models/connect4.joblib")
         except FileNotFoundError:
             df = read_csv('src/ai/datasets/connect4_dataset.csv')
             X = df.iloc[:, :-1]
             y = df.iloc[:, -1]
             self.clf = DecisionTreeClassifier(5, 2, "entropy")
             self.clf.fit(X, y)
-            dump(self.clf, "models/connect4_model.joblib")
+            dump(self.clf, "src/ai/models/connect4.joblib")
 
     # Faz a previsão para os dados da íris
     def predict_iris(self, sepal_length, sepal_width, petal_length, petal_width):
