@@ -1,7 +1,7 @@
 import time
 import numpy as np
 from datetime import datetime
-from results.storage import save_metrics
+from storage import save_metrics
 
 def measure_response_time(ai_func, board: 'np.ndarray') -> float:
     """Mede o tempo de resposta de uma função IA"""

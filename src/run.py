@@ -5,11 +5,15 @@ import os
 from pathlib import Path
 import json
 import pandas as pd
-from ai import mcts, a_star, decision_tree
+import time
+import random
 from game import rules as game
 from game import constants as c
-from game import board as Board 
-import random
+from game import board as Board
+from statistics.storage import save_metrics, load_metrics
+from statistics.metrics.critical_decisions import evaluate_decision_quality, get_decision_quality_stats
+from statistics.metrics.response_time import measure_response_time, record_response_time
+from statistics.metrics.win_rates import record_game_result, calculate_win_rates
 
 class IA_Analysis:
     def __init__(self):
@@ -41,8 +45,120 @@ class IA_Analysis:
         
         print("Análise completa concluída!")
 
-    # [...] (mantenha os métodos test_ia_vs_random e test_ia_vs_ia iguais)
+    def test_ia_vs_random(self, ia_func, ia_name, n_games):
+        """Executa uma série de jogos contra um oponente aleatório"""
+        print(f"Executando {n_games} jogos {ia_name} vs Random...")
+        
+        for game_num in range(n_games):
+            board = Board.create_board()
+            game_over = False
+            turn = random.randint(0, 1)  # Decide quem começa
+            
+            while not game_over:
+                if turn == 0:  # Vez da IA
+                    piece = c.PLAYER1_PIECE
+                    start_time = time.perf_counter()
+                    move = ia_func(board)
+                    time_taken = time.perf_counter() - start_time
+                    
+                    # Registra métricas usando os módulos separados
+                    self.record_critical_decision(ia_name, board, move, piece)
+                    record_response_time(ia_name, time_taken)
+                else:  # Vez do random
+                    piece = c.PLAYER2_PIECE
+                    move = random.choice(Board.available_moves(board))
+                
+                # Executa movimento
+                Board.drop_piece(board, move, piece)
+                
+                # Determina fase do jogo
+                phase = self.determine_game_phase(board)
+                
+                # Verifica vitória
+                if Board.winning_move(board, piece):
+                    if turn == 0:
+                        record_game_result(ia_name, 'random', 'win', {'phase': phase})
+                    else:
+                        record_game_result(ia_name, 'random', 'loss', {'phase': phase})
+                    game_over = True
+                elif len(Board.available_moves(board)) == 0:
+                    record_game_result(ia_name, 'random', 'draw', {'phase': phase})
+                    game_over = True
+                
+                turn = 1 - turn  # Alterna jogador
 
+    def test_ia_vs_ia(self, ia_func1, ia_name1, ia_func2, ia_name2, n_games):
+        """Executa uma série de jogos entre duas IAs diferentes"""
+        print(f"Executando {n_games} jogos {ia_name1} vs {ia_name2}...")
+        
+        for game_num in range(n_games):
+            board = Board.create_board()
+            game_over = False
+            turn = 0  # Alterna entre 0 (primeira IA) e 1 (segunda IA)
+            
+            while not game_over:
+                # Seleciona a IA atual
+                if turn == 0:
+                    current_ia = ia_name1
+                    ia_func = ia_func1
+                    piece = c.PLAYER1_PIECE
+                else:
+                    current_ia = ia_name2
+                    ia_func = ia_func2
+                    piece = c.PLAYER2_PIECE
+                
+                # Mede tempo de resposta
+                start_time = time.perf_counter()
+                move = ia_func(board)
+                time_taken = time.perf_counter() - start_time
+                
+                # Registra métricas usando os módulos separados
+                self.record_critical_decision(current_ia, board, move, piece)
+                record_response_time(current_ia, time_taken)
+                
+                # Executa movimento
+                Board.drop_piece(board, move, piece)
+                
+                # Determina fase do jogo
+                phase = self.determine_game_phase(board)
+                
+                # Verifica vitória
+                if Board.winning_move(board, piece):
+                    winner = ia_name1 if turn == 0 else ia_name2
+                    loser = ia_name2 if turn == 0 else ia_name1
+                    record_game_result(winner, loser, 'win', {'phase': phase})
+                    record_game_result(loser, winner, 'loss', {'phase': phase})
+                    game_over = True
+                elif len(Board.available_moves(board)) == 0:
+                    record_game_result(ia_name1, ia_name2, 'draw', {'phase': phase})
+                    record_game_result(ia_name2, ia_name1, 'draw', {'phase': phase})
+                    game_over = True
+                
+                turn = 1 - turn  # Alterna jogador
+
+    def determine_game_phase(self, board):
+        """Determina a fase do jogo com base no número de peças colocadas"""
+        total_pieces = np.sum(board != 0)
+        total_positions = board.shape[0] * board.shape[1]
+        
+        if total_pieces < total_positions * 0.3:
+            return 'early'
+        elif total_pieces < total_positions * 0.7:
+            return 'mid'
+        else:
+            return 'late'
+
+    def record_critical_decision(self, ai_type, board, move, piece):
+        """Wrapper para a função do módulo critical_decisions"""
+        evaluation = evaluate_decision_quality(board, move, piece)
+        data = {
+            'ai_type': ai_type,
+            'move': move,
+            'piece': piece,
+            'timestamp': datetime.now().isoformat(),
+            **evaluation
+        }
+        save_metrics('critical_decisions', data)
 
     def generate_reports(self):
         """Gera relatórios e gráficos com os resultados"""
@@ -54,20 +170,11 @@ class IA_Analysis:
         self.plot_phase_efficacy(ia_list)
         self.plot_decision_quality(ia_list)
     
-    def load_metric_data(self, metric_name):
-        """Carrega dados de uma métrica específica"""
-        file_path = self.results_dir / f'{metric_name}.json'
-        if not file_path.exists():
-            return []
-        
-        with open(file_path, 'r') as f:
-            return json.load(f)
-    
     def plot_win_rates(self, ia_list):
-        """Gráfico de taxas de vitória usando apenas matplotlib"""
+        """Gráfico de taxas de vitória"""
         data = []
         for ia in ia_list:
-            vs_random = self.calculate_win_rates(ia, 'random')
+            vs_random = calculate_win_rates(ia, 'random')
             if vs_random:
                 data.append({
                     'IA': ia,
@@ -79,7 +186,7 @@ class IA_Analysis:
             
             for opponent in ia_list:
                 if opponent != ia:
-                    vs_ia = self.calculate_win_rates(ia, opponent)
+                    vs_ia = calculate_win_rates(ia, opponent)
                     if vs_ia:
                         data.append({
                             'IA': ia,
@@ -115,30 +222,12 @@ class IA_Analysis:
         plt.savefig(self.plots_dir / 'win_rates.png')
         plt.close()
     
-    def calculate_win_rates(self, ai_type, opponent_type):
-        """Calcula taxas de vitória com base nos dados salvos"""
-        data = self.load_metric_data('win_rates')
-        filtered = [d for d in data if d['ai_type'] == ai_type and d['opponent'] == opponent_type]
-        
-        if not filtered:
-            return None
-        
-        results = [d['result'] for d in filtered]
-        total = len(results)
-        
-        return {
-            'wins': results.count('win') / total,
-            'losses': results.count('loss') / total,
-            'draws': results.count('draw') / total,
-            'total_games': total
-        }
-    
     def plot_response_times(self, ia_list):
         """Gráfico de tempos de resposta médios"""
         plt.figure(figsize=(10, 6))
         
         for ia in ia_list:
-            data = self.load_metric_data('response_times')
+            data = load_metrics('response_times')
             filtered = [d['time_taken'] for d in data if d['ai_type'] == ia]
             
             if not filtered:
@@ -168,7 +257,7 @@ class IA_Analysis:
         for i, ia in enumerate(ia_list):
             win_rates = []
             for phase in phases:
-                data = self.load_metric_data('win_rates')
+                data = load_metrics('win_rates')
                 filtered = [d for d in data 
                           if d['ai_type'] == ia 
                           and 'phase' in d 
@@ -196,7 +285,7 @@ class IA_Analysis:
         plt.figure(figsize=(12, 8))
         
         for ia in ia_list:
-            stats = self.get_decision_quality_stats(ia)
+            stats = get_decision_quality_stats(ia)
             if not stats:
                 continue
                 
@@ -216,35 +305,10 @@ class IA_Analysis:
         plt.legend()
         plt.savefig(self.plots_dir / 'decision_quality.png')
         plt.close()
-    
-    def get_decision_quality_stats(self, ai_type):
-        """Obtém estatísticas de qualidade de decisões"""
-        data = self.load_metric_data('critical_decisions')
-        filtered = [d for d in data if d['ai_type'] == ai_type]
-        
-        if not filtered:
-            return None
-        
-        decision_types = {}
-        quality_scores = [d['quality'] for d in filtered]
-        
-        for d in filtered:
-            if d['decision_type'] not in decision_types:
-                decision_types[d['decision_type']] = 0
-            decision_types[d['decision_type']] += 1
-        
-        return {
-            'total_decisions': len(filtered),
-            'decision_types': decision_types,
-            'average_quality': sum(quality_scores) / len(quality_scores),
-            'quality_distribution': {
-                'excellent': sum(1 for q in quality_scores if q >= 0.8) / len(quality_scores),
-                'good': sum(1 for q in quality_scores if 0.5 <= q < 0.8) / len(quality_scores),
-                'neutral': sum(1 for q in quality_scores if -0.5 <= q < 0.5) / len(quality_scores),
-                'poor': sum(1 for q in quality_scores if q < -0.5) / len(quality_scores)
-            }
-        }
 
 if __name__ == "__main__":
+    # Importa as IAs aqui para evitar circular imports
+    from ai import mcts, a_star, decision_tree
+    
     analyzer = IA_Analysis()
     analyzer.run_full_analysis(n_games=50)

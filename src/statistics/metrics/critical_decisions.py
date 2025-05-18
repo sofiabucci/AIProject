@@ -1,6 +1,6 @@
 import numpy as np
 from datetime import datetime
-from results.storage import save_metrics, load_metrics
+from storage import save_metrics, load_metrics
 from game import rules as game
 from game import constants as c
 from ai import heuristic as h

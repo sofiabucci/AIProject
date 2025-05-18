@@ -1,6 +1,6 @@
 import numpy as np
 from datetime import datetime
-from results.storage import save_metrics, load_metrics
+from storage import save_metrics, load_metrics
 
 def record_game_result(ai_type: str, opponent_type: str, result: str, phase_data: dict = None):
     """Registra o resultado de um jogo e opcionalmente dados por fase"""
