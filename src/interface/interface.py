@@ -83,7 +83,7 @@ class Interface:
     def draw_options_board(self):
         """Desenha a tela inicial com os modos de jogo"""
         self.screen.fill(c.BACKGROUND_COLOR)
-        font = pygame.font.Font("interface/fonts/FreckleFace-Regular.ttf", 150)        
+        font = pygame.font.Font("src/interface/fonts/FreckleFace-Regular.ttf", 150)        
         text_surface = font.render("Connect 4", True, c.TEXT_COLOR)
         text_rect = text_surface.get_rect(center=(560, 230))
         self.screen.blit(text_surface, text_rect)
@@ -99,7 +99,7 @@ class Interface:
             mouse_x, mouse_y = pygame.mouse.get_pos()
 
             self.screen.fill(c.BACKGROUND_COLOR)
-            font = pygame.font.Font("interface/fonts/FreckleFace-Regular.ttf", 150)        
+            font = pygame.font.Font("src/interface/fonts/FreckleFace-Regular.ttf", 150)        
             text_surface = font.render("Connect 4", True, c.TEXT_COLOR)
             text_rect = text_surface.get_rect(center=(560, 230))
             self.screen.blit(text_surface, text_rect)
@@ -162,7 +162,7 @@ class Interface:
         """Desenha um botão interativo com texto"""
         color = c.BUTTON_HOVER_COLOR if hovered else c.BUTTON_COLOR
         pygame.draw.rect(self.screen, color, (x, y, width, height), 0, 30)
-        font = pygame.font.Font("interface/fonts/FreckleFace-Regular.ttf", 36)
+        font = pygame.font.Font("src/interface/fonts/FreckleFace-Regular.ttf", 36)
         text_surface = font.render(text, True, c.TEXT_COLOR)
         text_rect = text_surface.get_rect(center=(x + width / 2, y + height / 2))
         self.screen.blit(text_surface, text_rect)

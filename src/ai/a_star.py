@@ -22,7 +22,7 @@ def a_star(board: np.ndarray, ai_piece: int, opponent_piece: int) -> int:
         # Simula a jogada do AI na coluna atual
         simulated_board = game.simulate_move(board, ai_piece, col)
         # Se essa jogada resulta em vitória imediata, retorna-a diretamente
-        if game.winning_move(simulated_board, c.AI_PIECE): 
+        if game.winning_move(simulated_board, ai_piece): 
             return col
         # Simula a resposta do oponente usando a mesma função (papéis invertidos)
         opponent_col = a_star(simulated_board, opponent_piece, ai_piece)
