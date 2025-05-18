@@ -4,7 +4,7 @@ import numpy as np  # Biblioteca para manipulação de arrays (tabuleiro)
 import math  # Biblioteca para funções matemáticas
 import pygame  # Biblioteca para interface gráfica
 from game.board import Board  # Classe que representa o tabuleiro
-from ai import a_star as g, mcts as m, decisision_tree as tree  # Importação dos algoritmos de IA
+from ai import a_star as g, decision_tree as tree, mcts as m  # Importação dos algoritmos de IA
 
 # Função responsável pela jogada do jogador humano
 def human_move(bd: Board, interface: any, board: np.ndarray, turn: int, event: any) -> bool:

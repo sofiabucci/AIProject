@@ -8,6 +8,7 @@ import pandas as pd
 from ai import mcts, a_star, decision_tree
 from game import rules as game
 from game import constants as c
+from game import board as Board 
 import random
 
 class IA_Analysis:
@@ -41,6 +42,7 @@ class IA_Analysis:
         print("Análise completa concluída!")
 
     # [...] (mantenha os métodos test_ia_vs_random e test_ia_vs_ia iguais)
+
 
     def generate_reports(self):
         """Gera relatórios e gráficos com os resultados"""
